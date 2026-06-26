@@ -33,14 +33,15 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
     public VyaparGatewayStrategy(
             @Value("${vyapargateway.api.key}") String apiKey,
             @Value("${vyapargateway.base.url:https://api.vyapargateway.com/v1}") String baseUrl,
-            @Value("${vyapargateway.webhook.secret}") String webhookSecret) {
+            @Value("${vyapargateway.webhook.secret}") String webhookSecret,
+            ObjectMapper objectMapper) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
         this.webhookSecret = webhookSecret;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
     }
 
     @Override
