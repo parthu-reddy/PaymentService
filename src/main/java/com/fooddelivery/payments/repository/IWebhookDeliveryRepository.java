@@ -10,5 +10,5 @@ import java.util.Optional;
 @Repository
 public interface IWebhookDeliveryRepository extends JpaRepository<WebhookDelivery, UUID> {
     Optional<WebhookDelivery> findByEventId(String eventId);
-    java.util.List<WebhookDelivery> findByProcessingStatusAndCreatedAtBefore(com.fooddelivery.payments.model.enums.DeliveryStatus status, java.time.LocalDateTime createdAt);
+    java.util.List<WebhookDelivery> findTop100ByProcessingStatusAndCreatedAtBefore(com.fooddelivery.payments.model.enums.DeliveryStatus status, java.time.LocalDateTime createdAt);
 }

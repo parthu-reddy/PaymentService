@@ -39,7 +39,7 @@ public class PaymentReconciliationJob {
         logger.info("Starting Payment Reconciliation Job");
 
         // Find intents stuck in INITIATED for more than 15 minutes
-        List<PaymentIntent> stuckIntents = paymentIntentRepository.findByStatusAndCreatedAtBefore(
+        List<PaymentIntent> stuckIntents = paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(
                 IntentStatus.INITIATED, 
                 LocalDateTime.now().minusMinutes(15)
         );
