@@ -38,5 +38,13 @@ cashfree:
     id: ${CASHFREE_CLIENT_ID:test_cf_client_id}
     secret: ${CASHFREE_CLIENT_SECRET:test_cf_client_secret}
 
+vyapargateway:
+  api:
+    key: ${VYAPAR_API_KEY_SECRET:test_vyapar_api_key}
+  base:
+    url: ${VYAPAR_BASE_URL:https://api.vyapargateway.com/v1}
+  webhook:
+    secret: ${VYAPAR_WEBHOOK_SIGNING_SECRET:test_vyapar_webhook_secret}
+
 server:
   port: ${PORT:8080}

@@ -52,6 +52,19 @@ public class WebhookController {
         return processWebhook(request, "CASHFREE", signature, timestamp, eventId);
     }
 
+    @PostMapping("/vyapar")
+    public ResponseEntity<String> handleVyaparWebhook(
+            HttpServletRequest request,
+            @RequestHeader(value = "X-VyaparGateway-Signature", required = false) String signature) {
+
+        String eventId = request.getHeader("X-VyaparGateway-Event-Id");
+        if (eventId == null) {
+            eventId = java.util.UUID.randomUUID().toString();
+        }
+        
+        return processWebhook(request, "VYAPAR", signature, null, eventId);
+    }
+
     private ResponseEntity<String> processWebhook(HttpServletRequest request, String gateway, String signature, String timestamp, String eventId) {
         try {
             if (signature == null) {

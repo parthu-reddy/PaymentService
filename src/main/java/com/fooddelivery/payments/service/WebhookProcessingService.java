@@ -28,6 +28,8 @@ public class WebhookProcessingService {
         if (rawBody.contains("\"event\":\"order.paid\"")) eventType = "order.paid";
         else if (rawBody.contains("\"event\":\"payment.captured\"")) eventType = "payment.captured";
         else if (rawBody.contains("\"type\":\"PAYMENT_SUCCESS_WEBHOOK\"")) eventType = "PAYMENT_SUCCESS_WEBHOOK"; // Cashfree Example
+        else if (rawBody.contains("\"event\":\"payment.success\"")) eventType = "payment.success"; // Vyapar
+        else if (rawBody.contains("\"event\":\"refund.success\"")) eventType = "refund.success"; // Vyapar
         
         delivery.setEventType(eventType);
         delivery.setPayload(rawBody);

@@ -14,6 +14,9 @@ import java.util.Base64;
 import java.util.UUID;
 import java.time.Instant;
 
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
+
 @Service
 public class CashfreeStrategy implements PaymentGatewayStrategy {
 
@@ -70,8 +73,7 @@ public class CashfreeStrategy implements PaymentGatewayStrategy {
             return false;
         }
 
-        // timestamp might be in seconds or ms, let's assume ms based on standard, but if it's seconds we should multiply by 1000
-        // Cashfree timestamp is epoch in milliseconds usually
+        // timestamp might be in seconds or ms, let's assume ms based on standard
         if (currentTimestamp - webhookTimestamp > 300000) { // 5 minutes in milliseconds
             return false; 
         }
@@ -79,15 +81,20 @@ public class CashfreeStrategy implements PaymentGatewayStrategy {
         try {
             String dataToSign = timestamp + payload;
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secret_key = new SecretKeySpec(cfClientSecret.getBytes(), "HmacSHA256");
+            SecretKeySpec secret_key = new SecretKeySpec(cfClientSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             sha256_HMAC.init(secret_key);
 
-            byte[] hash = sha256_HMAC.doFinal(dataToSign.getBytes());
+            byte[] hash = sha256_HMAC.doFinal(dataToSign.getBytes(StandardCharsets.UTF_8));
             String expectedSignature = Base64.getEncoder().encodeToString(hash);
 
-            return expectedSignature.equals(signature);
+            return MessageDigest.isEqual(expectedSignature.getBytes(StandardCharsets.UTF_8), signature.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             return false;
         }
+    }
+
+    @Override
+    public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
+        throw new UnsupportedOperationException("Refunds not yet implemented for Cashfree");
     }
 }

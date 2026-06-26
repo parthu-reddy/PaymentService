@@ -16,4 +16,9 @@ public interface PaymentGatewayStrategy {
      * Verifies the cryptographic signature of an incoming webhook.
      */
     boolean verifyWebhookSignature(String payload, String signature, String timestamp);
+
+    /**
+     * Initiates a refund on the gateway.
+     */
+    boolean initiateRefund(String gatewayOrderId, double amount, String reason);
 }
