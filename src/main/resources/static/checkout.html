@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Delivery - Checkout</title>
+    <!-- Modern Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF5A5F;
+            --primary-hover: #FC642D;
+            --surface: #ffffff;
+            --background: #f7f7f9;
+            --text-main: #222222;
+            --text-muted: #717171;
+            --border: #ebebeb;
+            --shadow: 0 8px 28px rgba(0,0,0,0.08);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .checkout-container {
+            background: var(--surface);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 420px;
+            overflow: hidden;
+            transform: translateY(0);
+            transition: var(--transition);
+        }
+
+        .checkout-container:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+        }
+
+        .header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .cart-summary {
+            padding: 32px;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px dashed var(--border);
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .payment-options {
+            padding: 0 32px 32px;
+        }
+
+        .gateway-selector {
+            width: 100%;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 24px;
+            background-color: var(--background);
+            outline: none;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .gateway-selector:focus {
+            border-color: var(--primary);
+        }
+
+        .pay-button {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 12px rgba(255, 90, 95, 0.3);
+        }
+
+        .pay-button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 16px rgba(255, 90, 95, 0.4);
+        }
+
+        .pay-button:active {
+            transform: scale(0.98);
+        }
+
+        /* Dynamic Vyapar QR Container */
+        #vyapar-container {
+            display: none;
+            text-align: center;
+            margin-top: 24px;
+            padding: 24px;
+            background: #fafafa;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #vyapar-container p {
+            margin: 0 0 16px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        #qrcode {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            display: inline-block;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .loading-spinner {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <!-- Include QR Code Library for Vyapar Desktop -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Include our standalone payment widget -->
+    <script src="js/food-delivery-checkout.js"></script>
+</head>
+<body>
+
+    <div class="checkout-container">
+        <div class="header">
+            <h1>Spicy Bite Kitchen</h1>
+            <p>Order #ORD-209384</p>
+        </div>
+
+        <div class="cart-summary">
+            <div class="cart-item">
+                <span>Paneer Butter Masala (x2)</span>
+                <span>₹500.00</span>
+            </div>
+            <div class="cart-item">
+                <span>Garlic Naan (x4)</span>
+                <span>₹120.00</span>
+            </div>
+            <div class="cart-item" style="color: var(--text-muted); font-size: 14px;">
+                <span>Delivery Fee</span>
+                <span>₹40.00</span>
+            </div>
+            
+            <div class="total-row">
+                <span>Total Amount</span>
+                <span>₹660.00</span>
+            </div>
+        </div>
+
+        <div class="payment-options">
+            <select id="gateway" class="gateway-selector">
+                <option value="VYAPAR">Pay via UPI (Zero Fee)</option>
+                <option value="RAZORPAY">Credit/Debit Card (Razorpay)</option>
+                <option value="CASHFREE">Net Banking (Cashfree)</option>
+            </select>
+
+            <button id="pay-btn" class="pay-button" onclick="handlePayment()">
+                <span id="btn-text">Proceed to Pay</span>
+                <div id="btn-spinner" class="loading-spinner"></div>
+            </button>
+
+            <!-- Container where the Vyapar QR code will render -->
+            <div id="vyapar-container">
+                <p>Scan with any UPI App (GPay, PhonePe, Paytm)</p>
+                <div id="qrcode"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize our widget
+        const checkoutWidget = new FoodDeliveryCheckout({
+            apiBaseUrl: 'http://localhost:8080/api/v1/payments'
+        });
+
+        async function handlePayment() {
+            const btn = document.getElementById('pay-btn');
+            const btnText = document.getElementById('btn-text');
+            const spinner = document.getElementById('btn-spinner');
+            const gateway = document.getElementById('gateway').value;
+
+            // UI Loading state
+            btn.style.pointerEvents = 'none';
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+
+            // Mock Cart Data
+            const orderPayload = {
+                internalOrderId: 'ORD-209384-' + Math.floor(Math.random() * 1000),
+                amountInInr: 660.00,
+                customerPhone: '9876543210'
+            };
+
+            try {
+                // Call the widget
+                await checkoutWidget.initiatePayment(gateway, orderPayload);
+                
+                // If it's Vyapar Desktop, the widget will dispatch an event with the QR intent
+                document.addEventListener('vyaparIntentReady', function(e) {
+                    const intentUrl = e.detail;
+                    document.getElementById('vyapar-container').style.display = 'block';
+                    document.getElementById('pay-btn').style.display = 'none';
+                    
+                    // Generate QR Code visually
+                    document.getElementById('qrcode').innerHTML = '';
+                    new QRCode(document.getElementById("qrcode"), {
+                        text: intentUrl,
+                        width: 180,
+                        height: 180,
+                        colorDark : "#222222",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                });
+
+            } catch (error) {
+                alert('Payment initialization failed: ' + error.message);
+                
+                // Reset UI
+                btn.style.pointerEvents = 'auto';
+                btnText.style.display = 'block';
+                spinner.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
