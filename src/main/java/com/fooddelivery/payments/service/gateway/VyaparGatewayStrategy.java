@@ -31,6 +31,7 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     private final ObjectMapper objectMapper;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public VyaparGatewayStrategy(
             @Value("${vyapargateway.api.key}") String apiKey,
             @Value("${vyapargateway.base.url:https://api.vyapargateway.com/v1}") String baseUrl,

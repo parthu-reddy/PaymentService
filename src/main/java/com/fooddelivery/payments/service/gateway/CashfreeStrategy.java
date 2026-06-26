@@ -26,6 +26,7 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public CashfreeStrategy(
             @Value("${cashfree.client.id}") String cfClientId,
             @Value("${cashfree.client.secret}") String cfClientSecret) {

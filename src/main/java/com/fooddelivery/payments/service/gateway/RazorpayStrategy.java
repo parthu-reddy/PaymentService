@@ -16,6 +16,7 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
     private final RazorpayClient razorpayClient;
     private final String webhookSecret;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public RazorpayStrategy(
             @Value("${razorpay.key.id}") String rzpKeyId,
             @Value("${razorpay.key.secret}") String rzpKeySecret,
