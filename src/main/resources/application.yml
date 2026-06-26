@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: payment-service
+  
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/payment_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# Gateway Configs (Must be provided via ENV variables in production)
+razorpay:
+  key:
+    id: ${RAZORPAY_KEY_ID:test_rzp_key_id}
+    secret: ${RAZORPAY_KEY_SECRET:test_rzp_key_secret}
+  webhook:
+    secret: ${RAZORPAY_WEBHOOK_SECRET:test_rzp_webhook_secret}
+
+cashfree:
+  client:
+    id: ${CASHFREE_CLIENT_ID:test_cf_client_id}
+    secret: ${CASHFREE_CLIENT_SECRET:test_cf_client_secret}
+
+server:
+  port: ${PORT:8080}
