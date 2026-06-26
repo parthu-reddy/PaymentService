@@ -39,7 +39,7 @@ public class WebhookDlqJobTest {
         delivery.setCreatedAt(java.time.ZonedDateTime.now());
 
         when(webhookDeliveryRepository.findTop100ByProcessingStatusAndCreatedAtBefore(eq(DeliveryStatus.FAILED), any())).thenReturn(List.of(delivery));
-        doThrow(new RuntimeException("DB Lock")).when(webhookProcessingService).processWebhookAsync(anyString(), anyString(), anyString());
+        doThrow(new RuntimeException("DB Lock")).when(webhookProcessingService).retryWebhook(any());
 
         job.processFailedWebhooks();
 

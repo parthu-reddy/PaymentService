@@ -37,8 +37,8 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
         Boolean acquired = redisTemplate.opsForValue().setIfAbsent(cacheKey + ":lock", "PROCESSING", Duration.ofMinutes(5));
         if (Boolean.FALSE.equals(acquired)) {
-            response.setStatus(200); // OK
-            response.getWriter().write("Request is already being processed or has been processed");
+            response.setStatus(409); // Conflict
+            response.getWriter().write("Request is already being processed");
             return;
         }
 
@@ -52,9 +52,15 @@ public class IdempotencyFilter extends OncePerRequestFilter {
             
             responseWrapper.copyBodyToResponse();
             
+        } catch (Exception e) {
+            // Delete the lock so the client can retry immediately after an unexpected error
+            redisTemplate.delete(cacheKey + ":lock");
+            throw e;
         } finally {
-            // Keep the lock with a TTL to prevent retries from going through immediately
-            // In a robust implementation, you update the key to store the success state
+            // If the response is a 5xx error, release the lock to allow retry
+            if (response.getStatus() >= 500) {
+                redisTemplate.delete(cacheKey + ":lock");
+            }
         }
     }
 }

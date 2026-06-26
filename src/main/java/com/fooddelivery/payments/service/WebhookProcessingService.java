@@ -84,9 +84,7 @@ public class WebhookProcessingService {
             delivery.setProcessingStatus(DeliveryStatus.PENDING);
             webhookDeliveryRepository.save(delivery);
 
-            if ("VYAPAR".equalsIgnoreCase(gatewayName)) {
-                handleVyaparEvent(eventType, rootNode);
-            }
+            processGatewayEvent(gatewayName, eventType, rootNode);
             
             delivery.setProcessingStatus(DeliveryStatus.COMPLETED);
             webhookDeliveryRepository.save(delivery);
@@ -98,58 +96,118 @@ public class WebhookProcessingService {
         }
     }
 
-    private void handleVyaparEvent(String eventType, JsonNode rootNode) {
-        if ("payment.success".equals(eventType) || "refund.success".equals(eventType)) {
-            String gatewayOrderId = rootNode.path("payload").path("payment").path("entity").path("order_id").asText();
-            if (gatewayOrderId == null || gatewayOrderId.isEmpty()) {
-                // Fallback structure check
-                gatewayOrderId = rootNode.path("order_id").asText();
-            }
-            
-            Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
-            if (intentOpt.isEmpty()) {
-                throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
-            }
-            
-            PaymentIntent intent = intentOpt.get();
-            Order order = intent.getOrder();
-
-            if ("payment.success".equals(eventType)) {
-                intent.setStatus(IntentStatus.SUCCESS);
-                order.setStatus(OrderStatus.PAID);
-                
-                eventPublisher.publishPaymentSuccess(new PaymentSucceededEvent(
-                        order.getId().toString(),
-                        intent.getGatewayOrderId(),
-                        order.getTotalAmount(),
-                        intent.getGatewayName()
-                ));
-            } else if ("refund.success".equals(eventType)) {
-                BigDecimal refundAmount = new BigDecimal(rootNode.path("amount_refunded").asText("0"));
-                // Protect against missing fields by grabbing amount from another location if needed,
-                // but vyapar docs specify it should be present.
-                if (refundAmount.compareTo(BigDecimal.ZERO) == 0 && rootNode.has("amount")) {
-                     refundAmount = new BigDecimal(rootNode.path("amount").asText("0"));
-                }
-                BigDecimal currentRefund = intent.getAmountRefunded() != null ? intent.getAmountRefunded() : BigDecimal.ZERO;
-                intent.setAmountRefunded(currentRefund.add(refundAmount));
-                
-                if (intent.getAmountRefunded().compareTo(intent.getAmount()) >= 0) {
-                    intent.setStatus(IntentStatus.REFUNDED);
-                    order.setStatus(OrderStatus.CANCELLED_AND_REFUNDED);
-                } else {
-                    intent.setStatus(IntentStatus.PARTIALLY_REFUNDED);
-                    order.setStatus(OrderStatus.PARTIALLY_REFUNDED);
-                }
-            }
-
-            paymentIntentRepository.save(intent);
-            orderRepository.save(order);
+    @Transactional
+    public void retryWebhook(WebhookDelivery delivery) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(delivery.getPayload());
+            processGatewayEvent(delivery.getGatewayName(), delivery.getEventType(), rootNode);
+            delivery.setProcessingStatus(DeliveryStatus.COMPLETED);
+            webhookDeliveryRepository.save(delivery);
+        } catch (Exception e) {
+            logger.error("Failed to retry webhook event: {}", delivery.getEventId(), e);
+            delivery.setErrorLog("DLQ Retry Failed: " + e.getMessage());
+            webhookDeliveryRepository.save(delivery);
+            throw new RuntimeException(e);
         }
     }
 
-    // Deprecated unused method: maskSensitiveData(String rawBody)
-    // Removed because JSON is parsed exactly once in processWebhookAsync for performance.
+    private void processGatewayEvent(String gatewayName, String eventType, JsonNode rootNode) {
+        if ("VYAPAR".equalsIgnoreCase(gatewayName)) {
+            handleVyaparEvent(eventType, rootNode);
+        } else if ("RAZORPAY".equalsIgnoreCase(gatewayName)) {
+            handleRazorpayEvent(eventType, rootNode);
+        } else if ("CASHFREE".equalsIgnoreCase(gatewayName)) {
+            handleCashfreeEvent(eventType, rootNode);
+        } else {
+            logger.warn("Received webhook for unknown gateway: {}", gatewayName);
+        }
+    }
+
+    private void handleVyaparEvent(String eventType, JsonNode rootNode) {
+        String gatewayOrderId = rootNode.path("payload").path("payment").path("entity").path("order_id").asText();
+        if (gatewayOrderId == null || gatewayOrderId.isEmpty()) {
+            gatewayOrderId = rootNode.path("order_id").asText();
+        }
+        
+        if ("payment.success".equals(eventType)) {
+            handleSuccessfulPayment(gatewayOrderId);
+        } else if ("refund.success".equals(eventType)) {
+            handleRefundSuccess(gatewayOrderId, rootNode);
+        }
+    }
+
+    private void handleRazorpayEvent(String eventType, JsonNode rootNode) {
+        if ("order.paid".equals(eventType)) {
+            String gatewayOrderId = rootNode.path("payload").path("payment").path("entity").path("order_id").asText();
+            if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
+                handleSuccessfulPayment(gatewayOrderId);
+            }
+        }
+    }
+
+    private void handleCashfreeEvent(String eventType, JsonNode rootNode) {
+        if ("PAYMENT_SUCCESS_WEBHOOK".equals(eventType)) {
+            String gatewayOrderId = rootNode.path("data").path("order").path("order_id").asText();
+            if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
+                handleSuccessfulPayment(gatewayOrderId);
+            }
+        }
+    }
+
+    private void handleSuccessfulPayment(String gatewayOrderId) {
+        Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
+        if (intentOpt.isEmpty()) {
+            throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
+        }
+        
+        PaymentIntent intent = intentOpt.get();
+        if (intent.getStatus() == IntentStatus.SUCCESS) {
+            logger.info("PaymentIntent {} is already marked as SUCCESS.", intent.getId());
+            return;
+        }
+
+        Order order = intent.getOrder();
+        intent.setStatus(IntentStatus.SUCCESS);
+        order.setStatus(OrderStatus.PAID);
+        
+        eventPublisher.publishPaymentSuccess(new PaymentSucceededEvent(
+                order.getId().toString(),
+                intent.getGatewayOrderId(),
+                order.getTotalAmount(),
+                intent.getGatewayName()
+        ));
+
+        paymentIntentRepository.save(intent);
+        orderRepository.save(order);
+    }
+
+    private void handleRefundSuccess(String gatewayOrderId, JsonNode rootNode) {
+        Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
+        if (intentOpt.isEmpty()) {
+            throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
+        }
+        
+        PaymentIntent intent = intentOpt.get();
+        Order order = intent.getOrder();
+
+        BigDecimal refundAmount = new BigDecimal(rootNode.path("amount_refunded").asText("0"));
+        if (refundAmount.compareTo(BigDecimal.ZERO) == 0 && rootNode.has("amount")) {
+             refundAmount = new BigDecimal(rootNode.path("amount").asText("0"));
+        }
+        BigDecimal currentRefund = intent.getAmountRefunded() != null ? intent.getAmountRefunded() : BigDecimal.ZERO;
+        intent.setAmountRefunded(currentRefund.add(refundAmount));
+        
+        if (intent.getAmountRefunded().compareTo(intent.getAmount()) >= 0) {
+            intent.setStatus(IntentStatus.REFUNDED);
+            order.setStatus(OrderStatus.CANCELLED_AND_REFUNDED);
+        } else {
+            intent.setStatus(IntentStatus.PARTIALLY_REFUNDED);
+            order.setStatus(OrderStatus.PARTIALLY_REFUNDED);
+        }
+
+        paymentIntentRepository.save(intent);
+        orderRepository.save(order);
+    }
 
     private void maskNode(JsonNode node) {
         if (node.isObject()) {

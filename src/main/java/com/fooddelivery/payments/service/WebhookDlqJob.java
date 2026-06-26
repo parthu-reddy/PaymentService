@@ -40,14 +40,7 @@ public class WebhookDlqJob {
         for (WebhookDelivery delivery : failedDeliveries) {
             try {
                 logger.info("Attempting to reprocess failed webhook event: {}", delivery.getEventId());
-                webhookProcessingService.processWebhookAsync(
-                        delivery.getEventId() + "_retry", // append retry to bypass idempotency check temporarily if needed, though processWebhookAsync saves a new delivery. Actually better to just call processWebhookAsync with original eventId and body, but processWebhookAsync generates a new delivery object anyway.
-                        delivery.getGatewayName(),
-                        delivery.getPayload()); // Payload is masked, but for vyapar we only need `order_id` which is not masked!
-                
-                // Mark old as DEAD_LETTER since processWebhookAsync creates a NEW delivery record.
-                delivery.setProcessingStatus(DeliveryStatus.DEAD_LETTER);
-                webhookDeliveryRepository.save(delivery);
+                webhookProcessingService.retryWebhook(delivery);
             } catch (Exception e) {
                 logger.error("DLQ retry failed for event: {}, marking as DEAD_LETTER", delivery.getEventId(), e);
                 delivery.setProcessingStatus(DeliveryStatus.DEAD_LETTER);
