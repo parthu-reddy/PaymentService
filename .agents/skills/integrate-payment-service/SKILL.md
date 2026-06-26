@@ -5,7 +5,7 @@ description: Integration guide for connecting other microservices (like Cart or 
 
 # Integrating with the Payment Service
 
-The Payment Service exposes robust APIs to generate payment gateway orders and securely process webhooks. This document outlines how other microservices in the food delivery ecosystem should interact with it.
+The Payment Service exposes robust APIs to generate payment gateway orders (Razorpay, Cashfree, Vyapar) and securely process webhooks. This document outlines how other microservices in the food delivery ecosystem should interact with it.
 
 ## 1. Creating a Payment Order
 
@@ -21,15 +21,16 @@ The service uses the `PaymentGatewayOrchestrator#createOrder(String gatewayName,
 - `customerPhone` (String): The user's phone number (required by Cashfree).
 
 **Response:**
-Returns the specific `gatewayOrderId` (e.g., `order_XyZ123`). The frontend client application uses this ID to initialize the Razorpay or Cashfree SDK.
+Returns the specific `gatewayOrderId` (e.g., `order_XyZ123`) or a direct UPI intent string (for Vyapar). The frontend client application uses this ID to initialize the gateway SDK or trigger a UPI intent app switch.
 
 ## 2. Webhook Ingestion (For Reference)
 
 Other services do not call webhooks directly. The payment gateways call these endpoints:
 - `POST /api/v1/webhooks/razorpay`
 - `POST /api/v1/webhooks/cashfree`
+- `POST /api/v1/webhooks/vyapar`
 
-These endpoints verify the cryptographic signatures and offload the event to `WebhookProcessingService`.
+These endpoints verify the cryptographic signatures, generate deterministic fallback event IDs to prevent replay attacks, and offload the event to `WebhookProcessingService` for PII masking and fulfillment.
 
 ## 3. Listening for Payment Success
 
