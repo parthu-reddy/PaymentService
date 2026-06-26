@@ -250,7 +250,7 @@
 
             // Mock Cart Data
             const orderPayload = {
-                internalOrderId: 'ORD-209384-' + Math.floor(Math.random() * 1000),
+                internalOrderId: crypto.randomUUID(),
                 amountInInr: 660.00,
                 customerPhone: '9876543210'
             };
