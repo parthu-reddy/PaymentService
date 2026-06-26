@@ -8,6 +8,6 @@ import java.util.UUID;
 import java.util.Optional;
 
 @Repository
-public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
+public interface ITransactionRepository extends JpaRepository<Transaction, UUID> {
     Optional<Transaction> findByGatewayPaymentId(String gatewayPaymentId);
 }

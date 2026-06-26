@@ -2,7 +2,7 @@ package com.fooddelivery.payments.controller;
 
 import com.fooddelivery.payments.service.PaymentGatewayOrchestrator;
 import com.fooddelivery.payments.service.WebhookProcessingService;
-import com.fooddelivery.payments.service.gateway.PaymentGatewayStrategy;
+import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -21,9 +21,9 @@ public class WebhookController {
     
     private final WebhookProcessingService webhookProcessingService;
     private final PaymentGatewayOrchestrator orchestrator;
-    private final com.fooddelivery.payments.repository.WebhookDeliveryRepository webhookDeliveryRepository;
+    private final com.fooddelivery.payments.repository.IWebhookDeliveryRepository webhookDeliveryRepository;
 
-    public WebhookController(WebhookProcessingService webhookProcessingService, PaymentGatewayOrchestrator orchestrator, com.fooddelivery.payments.repository.WebhookDeliveryRepository webhookDeliveryRepository) {
+    public WebhookController(WebhookProcessingService webhookProcessingService, PaymentGatewayOrchestrator orchestrator, com.fooddelivery.payments.repository.IWebhookDeliveryRepository webhookDeliveryRepository) {
         this.webhookProcessingService = webhookProcessingService;
         this.orchestrator = orchestrator;
         this.webhookDeliveryRepository = webhookDeliveryRepository;
@@ -86,7 +86,7 @@ public class WebhookController {
             }
             String rawBody = new String(rawBodyBytes, StandardCharsets.UTF_8);
 
-            PaymentGatewayStrategy strategy = orchestrator.getStrategy(gateway);
+            IPaymentGatewayStrategy strategy = orchestrator.getStrategy(gateway);
             boolean isValid = strategy.verifyWebhookSignature(rawBody, signature, timestamp);
             
             if (!isValid) {

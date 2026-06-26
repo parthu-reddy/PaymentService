@@ -17,7 +17,7 @@ import java.security.MessageDigest;
 import java.time.Duration;
 
 @Service
-public class VyaparGatewayStrategy implements PaymentGatewayStrategy {
+public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(VyaparGatewayStrategy.class);
 

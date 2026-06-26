@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 
 @Service
-public class RazorpayStrategy implements PaymentGatewayStrategy {
+public class RazorpayStrategy implements IPaymentGatewayStrategy {
 
     private final RazorpayClient razorpayClient;
     private final String webhookSecret;

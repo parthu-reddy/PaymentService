@@ -18,7 +18,7 @@ import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
 
 @Service
-public class CashfreeStrategy implements PaymentGatewayStrategy {
+public class CashfreeStrategy implements IPaymentGatewayStrategy {
 
     private final String cfClientSecret;
 

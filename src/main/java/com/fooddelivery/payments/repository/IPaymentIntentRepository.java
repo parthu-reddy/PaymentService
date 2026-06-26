@@ -8,7 +8,7 @@ import java.util.UUID;
 import java.util.Optional;
 
 @Repository
-public interface PaymentIntentRepository extends JpaRepository<PaymentIntent, UUID> {
+public interface IPaymentIntentRepository extends JpaRepository<PaymentIntent, UUID> {
     Optional<PaymentIntent> findByGatewayOrderId(String gatewayOrderId);
     Optional<PaymentIntent> findByIdempotencyKey(String idempotencyKey);
 }

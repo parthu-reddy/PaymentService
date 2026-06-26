@@ -1,6 +1,6 @@
 package com.fooddelivery.payments.service.gateway;
 
-public interface PaymentGatewayStrategy {
+public interface IPaymentGatewayStrategy {
     
     /**
      * Identifies the gateway (e.g., "RAZORPAY", "CASHFREE").

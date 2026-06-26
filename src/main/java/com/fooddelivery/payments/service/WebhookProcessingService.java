@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fooddelivery.payments.model.Order;
 import com.fooddelivery.payments.model.PaymentIntent;
 import com.fooddelivery.payments.model.WebhookDelivery;
-import com.fooddelivery.payments.repository.OrderRepository;
-import com.fooddelivery.payments.repository.PaymentIntentRepository;
-import com.fooddelivery.payments.repository.WebhookDeliveryRepository;
+import com.fooddelivery.payments.repository.IOrderRepository;
+import com.fooddelivery.payments.repository.IPaymentIntentRepository;
+import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -22,15 +22,15 @@ public class WebhookProcessingService {
 
     private static final Logger logger = LoggerFactory.getLogger(WebhookProcessingService.class);
     
-    private final WebhookDeliveryRepository webhookDeliveryRepository;
-    private final PaymentIntentRepository paymentIntentRepository;
-    private final OrderRepository orderRepository;
+    private final IWebhookDeliveryRepository webhookDeliveryRepository;
+    private final IPaymentIntentRepository paymentIntentRepository;
+    private final IOrderRepository orderRepository;
     private final ObjectMapper objectMapper;
 
     public WebhookProcessingService(
-            WebhookDeliveryRepository webhookDeliveryRepository,
-            PaymentIntentRepository paymentIntentRepository,
-            OrderRepository orderRepository,
+            IWebhookDeliveryRepository webhookDeliveryRepository,
+            IPaymentIntentRepository paymentIntentRepository,
+            IOrderRepository orderRepository,
             ObjectMapper objectMapper) {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
         this.paymentIntentRepository = paymentIntentRepository;
