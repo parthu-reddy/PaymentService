@@ -3,6 +3,7 @@ package com.fooddelivery.payments.controller;
 import com.fooddelivery.payments.service.PaymentGatewayOrchestrator;
 import com.fooddelivery.payments.service.WebhookProcessingService;
 import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
+import com.fooddelivery.payments.model.enums.PaymentGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -21,12 +22,10 @@ public class WebhookController {
     
     private final WebhookProcessingService webhookProcessingService;
     private final PaymentGatewayOrchestrator orchestrator;
-    private final com.fooddelivery.payments.repository.IWebhookDeliveryRepository webhookDeliveryRepository;
 
-    public WebhookController(WebhookProcessingService webhookProcessingService, PaymentGatewayOrchestrator orchestrator, com.fooddelivery.payments.repository.IWebhookDeliveryRepository webhookDeliveryRepository) {
+    public WebhookController(WebhookProcessingService webhookProcessingService, PaymentGatewayOrchestrator orchestrator) {
         this.webhookProcessingService = webhookProcessingService;
         this.orchestrator = orchestrator;
-        this.webhookDeliveryRepository = webhookDeliveryRepository;
     }
 
     @PostMapping("/razorpay")
@@ -35,7 +34,7 @@ public class WebhookController {
             @RequestHeader(value = "x-razorpay-signature", required = false) String signature,
             @RequestHeader(value = "x-razorpay-event-id", required = false) String eventId) {
 
-        return processWebhook(request, "RAZORPAY", signature, null, eventId);
+        return processWebhook(request, PaymentGateway.RAZORPAY.name(), signature, null, eventId);
     }
 
     @PostMapping("/cashfree")
@@ -44,14 +43,8 @@ public class WebhookController {
             @RequestHeader(value = "x-webhook-signature", required = false) String signature,
             @RequestHeader(value = "x-webhook-timestamp", required = false) String timestamp) {
 
-        // Cashfree webhooks need a unique identifier. Sometimes they provide an event ID in payload or header.
-        // We'll generate a random UUID if not explicitly passed as a header to ensure uniqueness in our DB for this example.
-        String eventId = request.getHeader("x-webhook-event-id");
-        if (eventId == null) {
-            eventId = java.util.UUID.randomUUID().toString();
-        }
-        
-        return processWebhook(request, "CASHFREE", signature, timestamp, eventId);
+        String eventId = getOrGenerateEventId(request, "x-webhook-event-id");
+        return processWebhook(request, PaymentGateway.CASHFREE.name(), signature, timestamp, eventId);
     }
 
     @PostMapping("/vyapar")
@@ -59,17 +52,18 @@ public class WebhookController {
             HttpServletRequest request,
             @RequestHeader(value = "X-VyaparGateway-Signature", required = false) String signature) {
 
-        String eventId = request.getHeader("X-VyaparGateway-Event-Id");
-        if (eventId == null) {
-            eventId = java.util.UUID.randomUUID().toString();
-        }
-        
-        return processWebhook(request, "VYAPAR", signature, null, eventId);
+        String eventId = getOrGenerateEventId(request, "X-VyaparGateway-Event-Id");
+        return processWebhook(request, PaymentGateway.VYAPAR.name(), signature, null, eventId);
+    }
+
+    private String getOrGenerateEventId(HttpServletRequest request, String headerName) {
+        String eventId = request.getHeader(headerName);
+        return eventId != null ? eventId : java.util.UUID.randomUUID().toString();
     }
 
     private ResponseEntity<String> processWebhook(HttpServletRequest request, String gateway, String signature, String timestamp, String eventId) {
         try {
-            if (webhookDeliveryRepository.findByEventId(eventId).isPresent()) {
+            if (webhookProcessingService.isEventProcessed(eventId)) {
                 logger.info("Webhook event {} already processed. Returning 200 OK.", eventId);
                 return ResponseEntity.ok("Already Processed");
             }

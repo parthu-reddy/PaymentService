@@ -1,6 +1,8 @@
 package com.fooddelivery.payments.service.gateway;
 
-import org.json.JSONObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +28,8 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
     private final String webhookSecret;
     private final HttpClient httpClient;
 
+    private final ObjectMapper objectMapper;
+
     public VyaparGatewayStrategy(
             @Value("${vyapargateway.api.key}") String apiKey,
             @Value("${vyapargateway.base.url:https://api.vyapargateway.com/v1}") String baseUrl,
@@ -36,6 +40,7 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override
@@ -46,7 +51,7 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
     @Override
     public String createOrder(PaymentRequestContext context) {
         try {
-            JSONObject body = new JSONObject();
+            ObjectNode body = objectMapper.createObjectNode();
             body.put("amount", context.getAmountInInr().doubleValue());
             body.put("client_txn_id", context.getInternalOrderId().toString());
             body.put("customer_mobile", context.getCustomerPhone());
@@ -62,14 +67,14 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200) {
-                JSONObject jsonResponse = new JSONObject(response.body());
+                JsonNode jsonResponse = objectMapper.readTree(response.body());
                 // For Vyapar, the response often contains the intent and potentially a gateway order ID.
                 // Assuming it returns an 'order_id' or we use 'intent' string if appropriate.
                 // We will return the intent or order_id based on typical gateway flow.
                 if (jsonResponse.has("order_id")) {
-                    return jsonResponse.getString("order_id");
+                    return jsonResponse.get("order_id").asText();
                 }
-                return jsonResponse.getString("intent"); // Returning intent if order_id is missing
+                return jsonResponse.get("intent").asText(); // Returning intent if order_id is missing
             } else {
                 logger.error("Failed to execute VyaparGateway payload: {}", response.body());
                 throw new RuntimeException("Gateway initialization error status " + response.statusCode());
@@ -109,7 +114,7 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
     @Override
     public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
         try {
-            JSONObject body = new JSONObject();
+            ObjectNode body = objectMapper.createObjectNode();
             body.put("order_id", gatewayOrderId);
             body.put("amount", amount);
             body.put("reason", reason);

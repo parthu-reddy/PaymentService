@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
+import com.fooddelivery.payments.model.enums.OrderStatus;
 
 @Entity
 @Table(name = "orders")
@@ -25,8 +26,9 @@ public class Order extends BaseEntity {
     @Column(nullable = false)
     private String currency = "INR";
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "CREATED";
+    private OrderStatus status = OrderStatus.CREATED;
 
     @Column(name = "receipt_reference")
     private String receiptReference;

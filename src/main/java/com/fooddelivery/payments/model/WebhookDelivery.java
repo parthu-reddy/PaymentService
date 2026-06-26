@@ -3,6 +3,7 @@ package com.fooddelivery.payments.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import com.fooddelivery.payments.model.enums.DeliveryStatus;
 
 @Entity
 @Table(name = "webhook_deliveries")
@@ -22,8 +23,9 @@ public class WebhookDelivery extends BaseEntity {
     @Column(columnDefinition = "JSONB", nullable = false)
     private String payload; // Store JSON as string, postgres maps it to jsonb if mapped right or we can just use string
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "processing_status", nullable = false)
-    private String processingStatus = "PENDING";
+    private DeliveryStatus processingStatus = DeliveryStatus.PENDING;
 
     @Column(name = "error_log", columnDefinition = "TEXT")
     private String errorLog;

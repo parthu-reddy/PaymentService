@@ -16,6 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import com.fooddelivery.payments.model.enums.OrderStatus;
+import com.fooddelivery.payments.model.enums.IntentStatus;
+import com.fooddelivery.payments.model.enums.DeliveryStatus;
 
 @Service
 public class WebhookProcessingService {
@@ -38,6 +41,11 @@ public class WebhookProcessingService {
         this.objectMapper = objectMapper;
     }
 
+    @Transactional(readOnly = true)
+    public boolean isEventProcessed(String eventId) {
+        return webhookDeliveryRepository.findByEventId(eventId).isPresent();
+    }
+
     @Async
     @Transactional
     public void processWebhookAsync(String eventId, String gatewayName, String rawBody) {
@@ -57,18 +65,18 @@ public class WebhookProcessingService {
 
             delivery.setEventType(eventType);
             delivery.setPayload(rawBody);
-            delivery.setProcessingStatus("PENDING");
+            delivery.setProcessingStatus(DeliveryStatus.PENDING);
             webhookDeliveryRepository.save(delivery);
 
             if ("VYAPAR".equalsIgnoreCase(gatewayName)) {
                 handleVyaparEvent(eventType, rootNode);
             }
             
-            delivery.setProcessingStatus("COMPLETED");
+            delivery.setProcessingStatus(DeliveryStatus.COMPLETED);
             webhookDeliveryRepository.save(delivery);
         } catch (Exception e) {
             logger.error("Failed to process webhook event: {}", eventId, e);
-            delivery.setProcessingStatus("FAILED");
+            delivery.setProcessingStatus(DeliveryStatus.FAILED);
             delivery.setErrorLog(e.getMessage());
             webhookDeliveryRepository.save(delivery);
         }
@@ -91,8 +99,8 @@ public class WebhookProcessingService {
             Order order = intent.getOrder();
 
             if ("payment.success".equals(eventType)) {
-                intent.setStatus("SUCCESS");
-                order.setStatus("PAID");
+                intent.setStatus(IntentStatus.SUCCESS);
+                order.setStatus(OrderStatus.PAID);
             } else if ("refund.success".equals(eventType)) {
                 BigDecimal refundAmount = new BigDecimal(rootNode.path("amount_refunded").asText("0"));
                 // Protect against missing fields by grabbing amount from another location if needed,
@@ -104,11 +112,11 @@ public class WebhookProcessingService {
                 intent.setAmountRefunded(intent.getAmountRefunded().add(refundAmount));
                 
                 if (intent.getAmountRefunded().compareTo(intent.getAmount()) >= 0) {
-                    intent.setStatus("REFUNDED");
-                    order.setStatus("CANCELLED_AND_REFUNDED");
+                    intent.setStatus(IntentStatus.REFUNDED);
+                    order.setStatus(OrderStatus.CANCELLED_AND_REFUNDED);
                 } else {
-                    intent.setStatus("PARTIALLY_REFUNDED");
-                    order.setStatus("PARTIALLY_REFUNDED");
+                    intent.setStatus(IntentStatus.PARTIALLY_REFUNDED);
+                    order.setStatus(OrderStatus.PARTIALLY_REFUNDED);
                 }
             }
 

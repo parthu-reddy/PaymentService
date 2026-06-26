@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
+import com.fooddelivery.payments.model.enums.IntentStatus;
 
 @Entity
 @Table(name = "payment_intents")
@@ -27,8 +28,9 @@ public class PaymentIntent extends BaseEntity {
     @Column(name = "amount_refunded", nullable = false)
     private BigDecimal amountRefunded = BigDecimal.ZERO;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "INITIATED";
+    private IntentStatus status = IntentStatus.INITIATED;
 
     @Column(name = "idempotency_key", nullable = false, unique = true)
     private String idempotencyKey;
