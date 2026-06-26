@@ -64,7 +64,7 @@ public class WebhookProcessingService {
             }
 
             delivery.setEventType(eventType);
-            delivery.setPayload(rawBody);
+            delivery.setPayload(maskSensitiveData(rawBody));
             delivery.setProcessingStatus(DeliveryStatus.PENDING);
             webhookDeliveryRepository.save(delivery);
 
@@ -122,6 +122,46 @@ public class WebhookProcessingService {
 
             paymentIntentRepository.save(intent);
             orderRepository.save(order);
+        }
+    }
+
+    private String maskSensitiveData(String rawBody) {
+        try {
+            JsonNode rootNode = objectMapper.readTree(rawBody);
+            maskNode(rootNode);
+            return objectMapper.writeValueAsString(rootNode);
+        } catch (Exception e) {
+            logger.warn("Failed to mask sensitive data, returning redacted payload", e);
+            return "{\"error\": \"payload redacted due to masking failure\"}";
+        }
+    }
+
+    private void maskNode(JsonNode node) {
+        if (node.isObject()) {
+            com.fasterxml.jackson.databind.node.ObjectNode objNode = (com.fasterxml.jackson.databind.node.ObjectNode) node;
+            java.util.Iterator<java.util.Map.Entry<String, JsonNode>> fields = objNode.fields();
+            while (fields.hasNext()) {
+                java.util.Map.Entry<String, JsonNode> field = fields.next();
+                String key = field.getKey().toLowerCase();
+                if (key.contains("phone") || key.contains("mobile") || key.contains("email")) {
+                    if (field.getValue().isTextual()) {
+                        String val = field.getValue().asText();
+                        if (val.length() > 4) {
+                            objNode.put(field.getKey(), "****" + val.substring(val.length() - 4));
+                        } else {
+                            objNode.put(field.getKey(), "****");
+                        }
+                    } else if (field.getValue().isObject() || field.getValue().isArray()) {
+                        maskNode(field.getValue());
+                    }
+                } else {
+                    maskNode(field.getValue());
+                }
+            }
+        } else if (node.isArray()) {
+            for (JsonNode arrayItem : node) {
+                maskNode(arrayItem);
+            }
         }
     }
 }

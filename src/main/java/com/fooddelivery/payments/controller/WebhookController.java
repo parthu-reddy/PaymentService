@@ -41,33 +41,23 @@ public class WebhookController {
     public ResponseEntity<String> handleCashfreeWebhook(
             HttpServletRequest request,
             @RequestHeader(value = "x-webhook-signature", required = false) String signature,
-            @RequestHeader(value = "x-webhook-timestamp", required = false) String timestamp) {
+            @RequestHeader(value = "x-webhook-timestamp", required = false) String timestamp,
+            @RequestHeader(value = "x-webhook-event-id", required = false) String eventId) {
 
-        String eventId = getOrGenerateEventId(request, "x-webhook-event-id");
         return processWebhook(request, PaymentGateway.CASHFREE.name(), signature, timestamp, eventId);
     }
 
     @PostMapping("/vyapar")
     public ResponseEntity<String> handleVyaparWebhook(
             HttpServletRequest request,
-            @RequestHeader(value = "X-VyaparGateway-Signature", required = false) String signature) {
+            @RequestHeader(value = "X-VyaparGateway-Signature", required = false) String signature,
+            @RequestHeader(value = "X-VyaparGateway-Event-Id", required = false) String eventId) {
 
-        String eventId = getOrGenerateEventId(request, "X-VyaparGateway-Event-Id");
         return processWebhook(request, PaymentGateway.VYAPAR.name(), signature, null, eventId);
     }
 
-    private String getOrGenerateEventId(HttpServletRequest request, String headerName) {
-        String eventId = request.getHeader(headerName);
-        return eventId != null ? eventId : java.util.UUID.randomUUID().toString();
-    }
-
-    private ResponseEntity<String> processWebhook(HttpServletRequest request, String gateway, String signature, String timestamp, String eventId) {
+    private ResponseEntity<String> processWebhook(HttpServletRequest request, String gateway, String signature, String timestamp, String headerEventId) {
         try {
-            if (webhookProcessingService.isEventProcessed(eventId)) {
-                logger.info("Webhook event {} already processed. Returning 200 OK.", eventId);
-                return ResponseEntity.ok("Already Processed");
-            }
-            
             if (signature == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing Signature");
             }
@@ -79,6 +69,25 @@ public class WebhookController {
                 rawBodyBytes = wrapper.getInputStream().readAllBytes();
             }
             String rawBody = new String(rawBodyBytes, StandardCharsets.UTF_8);
+
+            String eventId = headerEventId;
+            if (eventId == null || eventId.trim().isEmpty()) {
+                // Generate deterministic hash of payload to prevent replay attacks
+                java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(rawBodyBytes);
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : hash) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1) hexString.append('0');
+                    hexString.append(hex);
+                }
+                eventId = hexString.toString();
+            }
+
+            if (webhookProcessingService.isEventProcessed(eventId)) {
+                logger.info("Webhook event {} already processed. Returning 200 OK.", eventId);
+                return ResponseEntity.ok("Already Processed");
+            }
 
             IPaymentGatewayStrategy strategy = orchestrator.getStrategy(gateway);
             boolean isValid = strategy.verifyWebhookSignature(rawBody, signature, timestamp);
