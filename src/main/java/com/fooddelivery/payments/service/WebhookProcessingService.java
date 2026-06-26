@@ -126,8 +126,8 @@ public class WebhookProcessingService {
                 if (refundAmount.compareTo(BigDecimal.ZERO) == 0 && rootNode.has("amount")) {
                      refundAmount = new BigDecimal(rootNode.path("amount").asText("0"));
                 }
-                
-                intent.setAmountRefunded(intent.getAmountRefunded().add(refundAmount));
+                BigDecimal currentRefund = intent.getAmountRefunded() != null ? intent.getAmountRefunded() : BigDecimal.ZERO;
+                intent.setAmountRefunded(currentRefund.add(refundAmount));
                 
                 if (intent.getAmountRefunded().compareTo(intent.getAmount()) >= 0) {
                     intent.setStatus(IntentStatus.REFUNDED);
