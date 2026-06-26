@@ -5,13 +5,17 @@ import com.fooddelivery.payments.service.gateway.PaymentRequestContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/payments")
-@CrossOrigin(origins = "*") // Allows cross-origin requests from our web app integration
+@CrossOrigin(origins = "${cors.allowed-origins:*}") // Allows cross-origin requests from configured domains
 public class PaymentController {
 
     private final PaymentGatewayOrchestrator orchestrator;
@@ -22,15 +26,21 @@ public class PaymentController {
     }
 
     public static class CreateOrderRequest {
+        @NotNull(message = "internalOrderId cannot be null")
+        @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", message = "internalOrderId must be a valid UUID")
         public String internalOrderId;
+
+        @NotNull(message = "amountInInr cannot be null")
+        @Positive(message = "amountInInr must be greater than zero")
         public BigDecimal amountInInr;
+
         public String customerPhone;
     }
 
     @PostMapping("/create-order")
     public ResponseEntity<String> createOrder(
             @RequestParam String gateway,
-            @RequestBody CreateOrderRequest request) {
+            @Valid @RequestBody CreateOrderRequest request) {
         try {
             PaymentRequestContext context = PaymentRequestContext.builder()
                 .internalOrderId(UUID.fromString(request.internalOrderId))
@@ -40,8 +50,10 @@ public class PaymentController {
             
             String intentOrOrderId = orchestrator.createOrder(gateway, context);
             return ResponseEntity.ok(intentOrOrderId);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Invalid request: " + e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
+            return ResponseEntity.status(500).body("Internal server error: " + e.getMessage());
         }
     }
 }
