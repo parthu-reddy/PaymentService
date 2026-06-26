@@ -24,6 +24,9 @@ public class PaymentIntent extends BaseEntity {
     @Column(nullable = false)
     private BigDecimal amount;
 
+    @Column(name = "amount_refunded", nullable = false)
+    private BigDecimal amountRefunded = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private String status = "INITIATED";
 
