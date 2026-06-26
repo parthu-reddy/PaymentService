@@ -18,6 +18,11 @@ public interface IPaymentGatewayStrategy {
     boolean verifyWebhookSignature(String payload, String signature, String timestamp);
 
     /**
+     * Verifies the status of the order on the gateway.
+     */
+    String verifyStatus(String gatewayOrderId);
+
+    /**
      * Initiates a refund on the gateway.
      */
     boolean initiateRefund(String gatewayOrderId, double amount, String reason);

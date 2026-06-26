@@ -13,6 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.retry.annotation.Backoff;
+import com.fooddelivery.payments.model.PaymentSucceededEvent;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -29,16 +32,19 @@ public class WebhookProcessingService {
     private final IPaymentIntentRepository paymentIntentRepository;
     private final IOrderRepository orderRepository;
     private final ObjectMapper objectMapper;
+    private final PaymentEventPublisher eventPublisher;
 
     public WebhookProcessingService(
             IWebhookDeliveryRepository webhookDeliveryRepository,
             IPaymentIntentRepository paymentIntentRepository,
             IOrderRepository orderRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            PaymentEventPublisher eventPublisher) {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.orderRepository = orderRepository;
         this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -48,6 +54,11 @@ public class WebhookProcessingService {
 
     @Async
     @Transactional
+    @Retryable(
+      retryFor = { org.springframework.dao.CannotAcquireLockException.class, org.springframework.dao.DeadlockLoserDataAccessException.class },
+      maxAttempts = 3,
+      backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
     public void processWebhookAsync(String eventId, String gatewayName, String rawBody) {
         WebhookDelivery delivery = new WebhookDelivery();
         delivery.setEventId(eventId);
@@ -101,6 +112,13 @@ public class WebhookProcessingService {
             if ("payment.success".equals(eventType)) {
                 intent.setStatus(IntentStatus.SUCCESS);
                 order.setStatus(OrderStatus.PAID);
+                
+                eventPublisher.publishPaymentSuccess(new PaymentSucceededEvent(
+                        order.getId().toString(),
+                        intent.getGatewayOrderId(),
+                        order.getTotalAmount(),
+                        intent.getGatewayName()
+                ));
             } else if ("refund.success".equals(eventType)) {
                 BigDecimal refundAmount = new BigDecimal(rootNode.path("amount_refunded").asText("0"));
                 // Protect against missing fields by grabbing amount from another location if needed,

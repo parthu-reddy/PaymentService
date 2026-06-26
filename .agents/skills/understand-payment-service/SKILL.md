@@ -19,10 +19,16 @@ It uses Java 17, Spring Boot 3, PostgreSQL, Redis, and Flyway.
   - `controller/`: REST endpoints like `WebhookController`.
 
 ## Key Technical Decisions
-1. **Idempotency & Replay Attack Prevention**: All incoming requests that modify state must include an `Idempotency-Key` header. The `IdempotencyFilter` checks Redis via `SETNX` for a lock. For webhooks, the `WebhookController` checks `WebhookProcessingService.isEventProcessed(eventId)`. If the webhook `Event-ID` header is missing, the controller generates a deterministic SHA-256 hash of the raw payload to prevent replay attacks.
-2. **Webhook Verification & PII Masking**: Gateways send HMAC SHA-256 signed webhooks. We intercept the stream with `RequestCachingFilter`. The controller extracts the raw byte array to verify the signature *before* JSON parsing. Cashfree checks timestamps. Before saving the payload to the database audit log (`WebhookDelivery`), `WebhookProcessingService` actively masks PII (phones, emails) to comply with data privacy laws.
-3. **JSON Parsing & Dependency Injection**: We universally inject Spring's Jackson `ObjectMapper` (even for Vyapar REST calls) for standardized serialization, avoiding manual `org.json` instantiation where possible (except Razorpay which strictly requires it).
-4. **Database Constraints**: Financial records are strictly immutable. Amounts are stored as decimals (`DECIMAL(15,2)`) or in integer subunits. Check constraints ensure refunds cannot exceed captured amounts. Flyway manages all DDL in `src/main/resources/db/migration/`.
+1. **Idempotency Filters:** Uses Redis to prevent duplicate webhooks or concurrent API calls.
+2. **Event-Driven (Kafka):** Publishes `PaymentSucceededEvent` to `payment-events` topic for downstream systems.
+3. **Resilience4j Circuit Breakers:** Protects outbound gateway calls. Fallbacks throw explicit 503 exceptions.
+4. **PII Masking & Privacy:** Scrubbing of raw mobile/emails before persisting webhook payloads to `webhook_deliveries`.
+5. **Cron Jobs:** 
+   - **Reconciliation:** Runs every 5 mins to sync `INITIATED` payments > 15mins old.
+   - **DLQ:** Auto-retries `FAILED` webhooks and transitions to `DEAD_LETTER`.
+6. **Webhook Verification & PII Masking**: Gateways send HMAC SHA-256 signed webhooks. We intercept the stream with `RequestCachingFilter`. The controller extracts the raw byte array to verify the signature *before* JSON parsing. Cashfree checks timestamps. Before saving the payload to the database audit log (`WebhookDelivery`), `WebhookProcessingService` actively masks PII (phones, emails) to comply with data privacy laws.
+7. **JSON Parsing & Dependency Injection**: We universally inject Spring's Jackson `ObjectMapper` (even for Vyapar REST calls) for standardized serialization, avoiding manual `org.json` instantiation where possible (except Razorpay which strictly requires it).
+8. **Database Constraints**: Financial records are strictly immutable. Amounts are stored as decimals (`DECIMAL(15,2)`) or in integer subunits. Check constraints ensure refunds cannot exceed captured amounts. Flyway manages all DDL in `src/main/resources/db/migration/`.
 
 ## Common Troubleshooting Scenarios
 - **Signature Verification Failing**: If webhooks fail validation, ensure `RequestCachingFilter` is registered as the highest precedence filter. Any filter that reads the body before it will corrupt the payload.
