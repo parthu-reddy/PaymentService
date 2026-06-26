@@ -21,10 +21,12 @@ public class WebhookController {
     
     private final WebhookProcessingService webhookProcessingService;
     private final PaymentGatewayOrchestrator orchestrator;
+    private final com.fooddelivery.payments.repository.WebhookDeliveryRepository webhookDeliveryRepository;
 
-    public WebhookController(WebhookProcessingService webhookProcessingService, PaymentGatewayOrchestrator orchestrator) {
+    public WebhookController(WebhookProcessingService webhookProcessingService, PaymentGatewayOrchestrator orchestrator, com.fooddelivery.payments.repository.WebhookDeliveryRepository webhookDeliveryRepository) {
         this.webhookProcessingService = webhookProcessingService;
         this.orchestrator = orchestrator;
+        this.webhookDeliveryRepository = webhookDeliveryRepository;
     }
 
     @PostMapping("/razorpay")
@@ -67,12 +69,21 @@ public class WebhookController {
 
     private ResponseEntity<String> processWebhook(HttpServletRequest request, String gateway, String signature, String timestamp, String eventId) {
         try {
+            if (webhookDeliveryRepository.findByEventId(eventId).isPresent()) {
+                logger.info("Webhook event {} already processed. Returning 200 OK.", eventId);
+                return ResponseEntity.ok("Already Processed");
+            }
+            
             if (signature == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing Signature");
             }
 
             ContentCachingRequestWrapper wrapper = (ContentCachingRequestWrapper) request;
             byte[] rawBodyBytes = wrapper.getContentAsByteArray();
+            if (rawBodyBytes.length == 0) {
+                // If the stream hasn't been consumed by any DTO yet, we must consume it here
+                rawBodyBytes = wrapper.getInputStream().readAllBytes();
+            }
             String rawBody = new String(rawBodyBytes, StandardCharsets.UTF_8);
 
             PaymentGatewayStrategy strategy = orchestrator.getStrategy(gateway);

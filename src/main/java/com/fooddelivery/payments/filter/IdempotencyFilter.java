@@ -35,10 +35,9 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
         String cacheKey = "idempotency:" + idempotencyKey;
 
-        // Distributed Lock using Setnx
         Boolean acquired = redisTemplate.opsForValue().setIfAbsent(cacheKey + ":lock", "PROCESSING", Duration.ofMinutes(5));
         if (Boolean.FALSE.equals(acquired)) {
-            response.setStatus(409); // Conflict
+            response.setStatus(200); // OK
             response.getWriter().write("Request is already being processed or has been processed");
             return;
         }
