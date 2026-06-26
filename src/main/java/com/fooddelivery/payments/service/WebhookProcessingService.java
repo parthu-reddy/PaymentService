@@ -75,7 +75,12 @@ public class WebhookProcessingService {
             }
 
             delivery.setEventType(eventType);
-            delivery.setPayload(maskSensitiveData(rawBody));
+            
+            // Performance optimization: Parse once, create deep copy, mask, and serialize
+            JsonNode payloadCopy = rootNode.deepCopy();
+            maskNode(payloadCopy);
+            delivery.setPayload(objectMapper.writeValueAsString(payloadCopy));
+            
             delivery.setProcessingStatus(DeliveryStatus.PENDING);
             webhookDeliveryRepository.save(delivery);
 
@@ -143,16 +148,8 @@ public class WebhookProcessingService {
         }
     }
 
-    private String maskSensitiveData(String rawBody) {
-        try {
-            JsonNode rootNode = objectMapper.readTree(rawBody);
-            maskNode(rootNode);
-            return objectMapper.writeValueAsString(rootNode);
-        } catch (Exception e) {
-            logger.warn("Failed to mask sensitive data, returning redacted payload", e);
-            return "{\"error\": \"payload redacted due to masking failure\"}";
-        }
-    }
+    // Deprecated unused method: maskSensitiveData(String rawBody)
+    // Removed because JSON is parsed exactly once in processWebhookAsync for performance.
 
     private void maskNode(JsonNode node) {
         if (node.isObject()) {

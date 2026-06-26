@@ -35,15 +35,14 @@ public class PaymentReconciliationJob {
 
     // Run every 5 minutes
     @Scheduled(fixedRate = 300000)
-    @Transactional
     public void reconcileStuckPayments() {
         logger.info("Starting Payment Reconciliation Job");
 
         // Find intents stuck in INITIATED for more than 15 minutes
-        List<PaymentIntent> stuckIntents = paymentIntentRepository.findAll().stream()
-                .filter(i -> i.getStatus() == IntentStatus.INITIATED)
-                .filter(i -> i.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(15)))
-                .toList();
+        List<PaymentIntent> stuckIntents = paymentIntentRepository.findByStatusAndCreatedAtBefore(
+                IntentStatus.INITIATED, 
+                LocalDateTime.now().minusMinutes(15)
+        );
 
         for (PaymentIntent intent : stuckIntents) {
             try {

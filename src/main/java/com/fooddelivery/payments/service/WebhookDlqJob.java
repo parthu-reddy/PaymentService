@@ -32,10 +32,10 @@ public class WebhookDlqJob {
         logger.info("Starting DLQ processing job for failed webhooks");
         
         // Find webhooks that failed and are older than 5 minutes (to allow DB to settle)
-        List<WebhookDelivery> failedDeliveries = webhookDeliveryRepository.findAll().stream()
-                .filter(d -> d.getProcessingStatus() == DeliveryStatus.FAILED)
-                .filter(d -> d.getCreatedAt().isBefore(LocalDateTime.now().minusMinutes(5)))
-                .toList();
+        List<WebhookDelivery> failedDeliveries = webhookDeliveryRepository.findByProcessingStatusAndCreatedAtBefore(
+                DeliveryStatus.FAILED, 
+                LocalDateTime.now().minusMinutes(5)
+        );
 
         for (WebhookDelivery delivery : failedDeliveries) {
             try {
