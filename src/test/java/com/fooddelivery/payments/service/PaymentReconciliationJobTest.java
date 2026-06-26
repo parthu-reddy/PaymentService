@@ -44,13 +44,13 @@ public class PaymentReconciliationJobTest {
         intent.setGatewayName("VYAPAR");
         intent.setGatewayOrderId("vyapar_123");
         intent.setStatus(IntentStatus.INITIATED);
-        intent.setCreatedAt(LocalDateTime.now().minusMinutes(20));
+        intent.setCreatedAt(java.time.ZonedDateTime.now().minusMinutes(20));
         
         Order order = new Order();
         order.setStatus(OrderStatus.CREATED);
         intent.setOrder(order);
 
-        when(paymentIntentRepository.findAll()).thenReturn(List.of(intent));
+        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(IntentStatus.INITIATED), any())).thenReturn(List.of(intent));
         when(orchestrator.getStrategy("VYAPAR")).thenReturn(strategy);
         when(strategy.verifyStatus("vyapar_123")).thenReturn("SUCCESS");
 

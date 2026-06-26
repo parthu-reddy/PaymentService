@@ -16,15 +16,15 @@ We provide a seamless drop-in checkout experience across all gateways.
 
 ### Vyapar UPI Checkout
 Minimalist UPI QR code generation.
-![Vyapar QR Checkout](/Users/parthureddy/.gemini/antigravity-ide/brain/c6033113-b4fb-4043-a5dc-76048e44e9d8/vyapar_qr_checkout_1782489255418.png)
+![Vyapar QR Checkout](./assets/images/vyapar_qr_checkout_1782489255418.png)
 
 ### Razorpay Modal
 Sleek credit card checkout directly embedded over the app.
-![Razorpay Modal](/Users/parthureddy/.gemini/antigravity-ide/brain/c6033113-b4fb-4043-a5dc-76048e44e9d8/razorpay_checkout_flow_1782489266773.png)
+![Razorpay Modal](./assets/images/razorpay_checkout_flow_1782489266773.png)
 
 ### Cashfree Redirect
 Premium loading state for gateway redirects.
-![Cashfree Redirect](/Users/parthureddy/.gemini/antigravity-ide/brain/c6033113-b4fb-4043-a5dc-76048e44e9d8/cashfree_checkout_flow_1782489280146.png)
+![Cashfree Redirect](./assets/images/cashfree_checkout_flow_1782489280146.png)
 
 ## Prerequisites
 - Java 17+

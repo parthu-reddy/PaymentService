@@ -4,5 +4,6 @@ public enum IntentStatus {
     INITIATED,
     SUCCESS,
     PARTIALLY_REFUNDED,
-    REFUNDED
+    REFUNDED,
+    FAILED
 }

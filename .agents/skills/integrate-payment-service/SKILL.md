@@ -38,8 +38,8 @@ Since the Payment Service asynchronously receives webhooks (e.g., `order.paid` o
 
 **Integration Pattern:**
 - Do not poll the Payment Service database.
-- Future implementations of this service will publish a message to a message broker (e.g., Kafka or Pub/Sub) when `WebhookProcessingService` transitions an order status to `COMPLETED`. 
-- Other services (e.g., Kitchen Dispatch, Delivery Fleet Service) should subscribe to these events to fulfill the order.
+- The service publishes a `PaymentSucceededEvent` to the `payment-events` Kafka topic when `WebhookProcessingService` transitions an order status to `PAID`. 
+- Other services (e.g., Kitchen Dispatch, Delivery Fleet Service) should subscribe to the `payment-events` topic to fulfill the order.
 
 ## 4. Idempotency Requirements
 

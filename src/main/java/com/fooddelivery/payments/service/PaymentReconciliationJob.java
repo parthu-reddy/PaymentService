@@ -41,7 +41,7 @@ public class PaymentReconciliationJob {
         // Find intents stuck in INITIATED for more than 15 minutes
         List<PaymentIntent> stuckIntents = paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(
                 IntentStatus.INITIATED, 
-                LocalDateTime.now().minusMinutes(15)
+                java.time.ZonedDateTime.now().minusMinutes(15)
         );
 
         for (PaymentIntent intent : stuckIntents) {

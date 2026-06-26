@@ -35,8 +35,11 @@ public class WebhookProcessingServiceTest {
     private IPaymentIntentRepository paymentIntentRepository;
     @Mock
     private IOrderRepository orderRepository;
-
+    @Mock
     private ObjectMapper objectMapper;
+    @Mock
+    private PaymentEventPublisher eventPublisher;
+
     private WebhookProcessingService service;
 
     @Captor
@@ -49,7 +52,8 @@ public class WebhookProcessingServiceTest {
                 webhookDeliveryRepository,
                 paymentIntentRepository,
                 orderRepository,
-                objectMapper);
+                objectMapper,
+                eventPublisher);
     }
 
     @Test
@@ -60,6 +64,8 @@ public class WebhookProcessingServiceTest {
 
         Order order = new Order();
         order.setStatus(OrderStatus.CREATED);
+        order.setId(java.util.UUID.randomUUID());
+        order.setTotalAmount(new BigDecimal("100.00"));
         
         PaymentIntent intent = new PaymentIntent();
         intent.setGatewayOrderId("ord_123");

@@ -39,6 +39,9 @@ public class WebhookControllerTest {
     @MockBean
     private IPaymentGatewayStrategy vyaparStrategy;
 
+    @MockBean
+    private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
+
     @Autowired
     private WebApplicationContext context;
 

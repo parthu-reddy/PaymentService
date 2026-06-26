@@ -11,5 +11,5 @@ import java.util.Optional;
 public interface IPaymentIntentRepository extends JpaRepository<PaymentIntent, UUID> {
     Optional<PaymentIntent> findByGatewayOrderId(String gatewayOrderId);
     Optional<PaymentIntent> findByIdempotencyKey(String idempotencyKey);
-    java.util.List<PaymentIntent> findTop100ByStatusAndCreatedAtBefore(com.fooddelivery.payments.model.enums.IntentStatus status, java.time.LocalDateTime createdAt);
+    java.util.List<PaymentIntent> findTop100ByStatusAndCreatedAtBefore(com.fooddelivery.payments.model.enums.IntentStatus status, java.time.ZonedDateTime createdAt);
 }

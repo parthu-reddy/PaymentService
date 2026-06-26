@@ -45,6 +45,14 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
         this.objectMapper = objectMapper;
     }
 
+    VyaparGatewayStrategy(String apiKey, String baseUrl, String webhookSecret, HttpClient httpClient, ObjectMapper objectMapper) {
+        this.apiKey = apiKey;
+        this.baseUrl = baseUrl;
+        this.webhookSecret = webhookSecret;
+        this.httpClient = httpClient;
+        this.objectMapper = objectMapper;
+    }
+
     @Override
     public String getGatewayName() {
         return "VYAPAR";
@@ -107,6 +115,7 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
                 String hex = Integer.toHexString(0xff & b);
                 if (hex.length() == 1) hexString.append('0');
                 hexString.append(hex);
+            }
             return MessageDigest.isEqual(
                 hexString.toString().getBytes(StandardCharsets.UTF_8), 
                 signature.getBytes(StandardCharsets.UTF_8)

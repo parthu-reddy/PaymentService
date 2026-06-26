@@ -36,9 +36,9 @@ public class WebhookDlqJobTest {
         delivery.setGatewayName("VYAPAR");
         delivery.setPayload("{}");
         delivery.setProcessingStatus(DeliveryStatus.FAILED);
-        delivery.setCreatedAt(LocalDateTime.now().minusMinutes(10));
+        delivery.setCreatedAt(java.time.ZonedDateTime.now());
 
-        when(webhookDeliveryRepository.findAll()).thenReturn(List.of(delivery));
+        when(webhookDeliveryRepository.findTop100ByProcessingStatusAndCreatedAtBefore(eq(DeliveryStatus.FAILED), any())).thenReturn(List.of(delivery));
         doThrow(new RuntimeException("DB Lock")).when(webhookProcessingService).processWebhookAsync(anyString(), anyString(), anyString());
 
         job.processFailedWebhooks();
