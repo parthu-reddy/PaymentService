@@ -20,6 +20,9 @@ public class PaymentGatewayOrchestrator {
     }
 
     public IPaymentGatewayStrategy getStrategy(String gatewayName) {
+        if (gatewayName == null) {
+            throw new IllegalArgumentException("Gateway name cannot be null");
+        }
         IPaymentGatewayStrategy strategy = strategies.get(gatewayName.toUpperCase());
         if (strategy == null) {
             throw new IllegalArgumentException("Unsupported gateway: " + gatewayName);

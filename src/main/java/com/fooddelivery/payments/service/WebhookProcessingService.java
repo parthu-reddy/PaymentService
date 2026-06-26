@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.retry.annotation.Backoff;
+import org.springframework.transaction.support.TransactionTemplate;
 import com.fooddelivery.payments.model.PaymentSucceededEvent;
 
 import java.math.BigDecimal;
@@ -33,18 +34,21 @@ public class WebhookProcessingService {
     private final IOrderRepository orderRepository;
     private final ObjectMapper objectMapper;
     private final PaymentEventPublisher eventPublisher;
+    private final TransactionTemplate transactionTemplate;
 
     public WebhookProcessingService(
             IWebhookDeliveryRepository webhookDeliveryRepository,
             IPaymentIntentRepository paymentIntentRepository,
             IOrderRepository orderRepository,
             ObjectMapper objectMapper,
-            PaymentEventPublisher eventPublisher) {
+            PaymentEventPublisher eventPublisher,
+            TransactionTemplate transactionTemplate) {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.orderRepository = orderRepository;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -53,7 +57,6 @@ public class WebhookProcessingService {
     }
 
     @Async
-    @Transactional
     @Retryable(
       retryFor = { org.springframework.dao.CannotAcquireLockException.class, org.springframework.dao.DeadlockLoserDataAccessException.class },
       maxAttempts = 3,
@@ -96,7 +99,6 @@ public class WebhookProcessingService {
         }
     }
 
-    @Transactional
     public void retryWebhook(WebhookDelivery delivery) {
         try {
             JsonNode rootNode = objectMapper.readTree(delivery.getPayload());
@@ -154,7 +156,7 @@ public class WebhookProcessingService {
         }
     }
 
-    private void handleSuccessfulPayment(String gatewayOrderId) {
+    protected void handleSuccessfulPayment(String gatewayOrderId) {
         Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
         if (intentOpt.isEmpty()) {
             throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
@@ -177,11 +179,13 @@ public class WebhookProcessingService {
                 intent.getGatewayName()
         ));
 
-        paymentIntentRepository.save(intent);
-        orderRepository.save(order);
+        transactionTemplate.executeWithoutResult(status -> {
+            paymentIntentRepository.save(intent);
+            orderRepository.save(order);
+        });
     }
 
-    private void handleRefundSuccess(String gatewayOrderId, JsonNode rootNode) {
+    protected void handleRefundSuccess(String gatewayOrderId, JsonNode rootNode) {
         Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
         if (intentOpt.isEmpty()) {
             throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
@@ -205,8 +209,10 @@ public class WebhookProcessingService {
             order.setStatus(OrderStatus.PARTIALLY_REFUNDED);
         }
 
-        paymentIntentRepository.save(intent);
-        orderRepository.save(order);
+        transactionTemplate.executeWithoutResult(status -> {
+            paymentIntentRepository.save(intent);
+            orderRepository.save(order);
+        });
     }
 
     private void maskNode(JsonNode node) {

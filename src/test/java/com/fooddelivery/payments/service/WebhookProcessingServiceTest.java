@@ -18,6 +18,10 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+import org.springframework.transaction.TransactionStatus;
+import com.fooddelivery.payments.model.PaymentSucceededEvent;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -40,6 +44,9 @@ public class WebhookProcessingServiceTest {
     @Mock
     private PaymentEventPublisher eventPublisher;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     private WebhookProcessingService service;
 
     @Captor
@@ -53,7 +60,14 @@ public class WebhookProcessingServiceTest {
                 paymentIntentRepository,
                 orderRepository,
                 objectMapper,
-                eventPublisher);
+                eventPublisher,
+                transactionTemplate);
+
+        lenient().doAnswer(invocation -> {
+            java.util.function.Consumer<TransactionStatus> action = invocation.getArgument(0);
+            action.accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
     }
 
     @Test
@@ -117,5 +131,77 @@ public class WebhookProcessingServiceTest {
         assertEquals(new BigDecimal("50.00"), intent.getAmountRefunded());
         assertEquals(IntentStatus.PARTIALLY_REFUNDED, intent.getStatus());
         assertEquals(OrderStatus.PARTIALLY_REFUNDED, order.getStatus());
+    }
+
+    @Test
+    void testProcessWebhookAsync_Razorpay() {
+        String eventId = "evt_rzp_123";
+        String rawBody = "{\"event\":\"order.paid\",\"payload\":{\"payment\":{\"entity\":{\"order_id\":\"ord_rzp_123\"}}}}";
+
+        Order order = new Order();
+        order.setId(java.util.UUID.randomUUID());
+        order.setStatus(OrderStatus.CREATED);
+        
+        PaymentIntent intent = new PaymentIntent();
+        intent.setGatewayOrderId("ord_rzp_123");
+        intent.setStatus(IntentStatus.INITIATED);
+        intent.setOrder(order);
+
+        when(paymentIntentRepository.findByGatewayOrderId("ord_rzp_123")).thenReturn(Optional.of(intent));
+
+        service.processWebhookAsync(eventId, "RAZORPAY", rawBody);
+        
+        assertEquals(IntentStatus.SUCCESS, intent.getStatus());
+        assertEquals(OrderStatus.PAID, order.getStatus());
+        verify(paymentIntentRepository).save(intent);
+    }
+
+    @Test
+    void testProcessWebhookAsync_Cashfree() {
+        String eventId = "evt_cf_123";
+        String rawBody = "{\"type\":\"PAYMENT_SUCCESS_WEBHOOK\",\"data\":{\"order\":{\"order_id\":\"ord_cf_123\"}}}";
+
+        Order order = new Order();
+        order.setId(java.util.UUID.randomUUID());
+        order.setStatus(OrderStatus.CREATED);
+        
+        PaymentIntent intent = new PaymentIntent();
+        intent.setGatewayOrderId("ord_cf_123");
+        intent.setStatus(IntentStatus.INITIATED);
+        intent.setOrder(order);
+
+        when(paymentIntentRepository.findByGatewayOrderId("ord_cf_123")).thenReturn(Optional.of(intent));
+
+        service.processWebhookAsync(eventId, "CASHFREE", rawBody);
+        
+        assertEquals(IntentStatus.SUCCESS, intent.getStatus());
+        assertEquals(OrderStatus.PAID, order.getStatus());
+        verify(paymentIntentRepository).save(intent);
+    }
+
+    @Test
+    void testRetryWebhook_Success() {
+        WebhookDelivery delivery = new WebhookDelivery();
+        delivery.setEventId("evt_retry_1");
+        delivery.setGatewayName("VYAPAR");
+        delivery.setEventType("payment.success");
+        delivery.setPayload("{\"payload\":{\"payment\":{\"entity\":{\"order_id\":\"ord_123\"}}}}");
+        
+        Order order = new Order();
+        order.setId(java.util.UUID.randomUUID());
+        order.setStatus(OrderStatus.CREATED);
+        
+        PaymentIntent intent = new PaymentIntent();
+        intent.setGatewayOrderId("ord_123");
+        intent.setStatus(IntentStatus.INITIATED);
+        intent.setOrder(order);
+
+        when(paymentIntentRepository.findByGatewayOrderId("ord_123")).thenReturn(Optional.of(intent));
+
+        service.retryWebhook(delivery);
+
+        assertEquals(IntentStatus.SUCCESS, intent.getStatus());
+        assertEquals(DeliveryStatus.COMPLETED, delivery.getProcessingStatus());
+        verify(webhookDeliveryRepository).save(delivery);
     }
 }
