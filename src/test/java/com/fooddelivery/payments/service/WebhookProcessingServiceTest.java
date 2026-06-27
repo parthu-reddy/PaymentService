@@ -9,6 +9,7 @@ import com.fooddelivery.payments.model.enums.IntentStatus;
 import com.fooddelivery.payments.model.enums.OrderStatus;
 import com.fooddelivery.payments.repository.IOrderRepository;
 import com.fooddelivery.payments.repository.IPaymentIntentRepository;
+import com.fooddelivery.payments.repository.ITransactionRepository;
 import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +41,8 @@ public class WebhookProcessingServiceTest {
     @Mock
     private IOrderRepository orderRepository;
     @Mock
+    private ITransactionRepository transactionRepository;
+    @Mock
     private ObjectMapper objectMapper;
     @Mock
     private PaymentEventPublisher eventPublisher;
@@ -59,6 +62,7 @@ public class WebhookProcessingServiceTest {
                 webhookDeliveryRepository,
                 paymentIntentRepository,
                 orderRepository,
+                transactionRepository,
                 objectMapper,
                 eventPublisher,
                 transactionTemplate);

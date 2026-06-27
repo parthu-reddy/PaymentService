@@ -37,3 +37,4 @@ build/
 ### Others ###
 apache-maven-*/
 *.zip
+.antigravitycli/

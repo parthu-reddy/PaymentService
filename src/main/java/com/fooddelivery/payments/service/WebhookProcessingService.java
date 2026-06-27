@@ -7,6 +7,7 @@ import com.fooddelivery.payments.model.PaymentIntent;
 import com.fooddelivery.payments.model.WebhookDelivery;
 import com.fooddelivery.payments.repository.IOrderRepository;
 import com.fooddelivery.payments.repository.IPaymentIntentRepository;
+import com.fooddelivery.payments.repository.ITransactionRepository;
 import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ public class WebhookProcessingService {
     private final IWebhookDeliveryRepository webhookDeliveryRepository;
     private final IPaymentIntentRepository paymentIntentRepository;
     private final IOrderRepository orderRepository;
+    private final ITransactionRepository transactionRepository;
     private final ObjectMapper objectMapper;
     private final PaymentEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
@@ -40,12 +42,14 @@ public class WebhookProcessingService {
             IWebhookDeliveryRepository webhookDeliveryRepository,
             IPaymentIntentRepository paymentIntentRepository,
             IOrderRepository orderRepository,
+            ITransactionRepository transactionRepository,
             ObjectMapper objectMapper,
             PaymentEventPublisher eventPublisher,
             TransactionTemplate transactionTemplate) {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.orderRepository = orderRepository;
+        this.transactionRepository = transactionRepository;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = transactionTemplate;
@@ -156,7 +160,7 @@ public class WebhookProcessingService {
         }
     }
 
-    protected void handleSuccessfulPayment(String gatewayOrderId) {
+    public void handleSuccessfulPayment(String gatewayOrderId) {
         Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
         if (intentOpt.isEmpty()) {
             throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
@@ -185,7 +189,7 @@ public class WebhookProcessingService {
         });
     }
 
-    protected void handleRefundSuccess(String gatewayOrderId, JsonNode rootNode) {
+    public void handleRefundSuccess(String gatewayOrderId, JsonNode rootNode) {
         Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
         if (intentOpt.isEmpty()) {
             throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
@@ -194,12 +198,14 @@ public class WebhookProcessingService {
         PaymentIntent intent = intentOpt.get();
         Order order = intent.getOrder();
 
-        BigDecimal refundAmount = new BigDecimal(rootNode.path("amount_refunded").asText("0"));
-        if (refundAmount.compareTo(BigDecimal.ZERO) == 0 && rootNode.has("amount")) {
-             refundAmount = new BigDecimal(rootNode.path("amount").asText("0"));
+        BigDecimal tempRefund = new BigDecimal(rootNode.path("amount_refunded").asText("0"));
+        if (tempRefund.compareTo(BigDecimal.ZERO) == 0 && rootNode.has("amount")) {
+             tempRefund = new BigDecimal(rootNode.path("amount").asText("0"));
         }
+        final BigDecimal finalRefundAmount = tempRefund;
+        
         BigDecimal currentRefund = intent.getAmountRefunded() != null ? intent.getAmountRefunded() : BigDecimal.ZERO;
-        intent.setAmountRefunded(currentRefund.add(refundAmount));
+        intent.setAmountRefunded(currentRefund.add(finalRefundAmount));
         
         if (intent.getAmountRefunded().compareTo(intent.getAmount()) >= 0) {
             intent.setStatus(IntentStatus.REFUNDED);
@@ -209,9 +215,18 @@ public class WebhookProcessingService {
             order.setStatus(OrderStatus.PARTIALLY_REFUNDED);
         }
 
+        // Also track on the transaction if one exists
+        Optional<com.fooddelivery.payments.model.Transaction> txOpt = transactionRepository.findFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(intent.getId(), "SUCCESS");
+
         transactionTemplate.executeWithoutResult(status -> {
             paymentIntentRepository.save(intent);
             orderRepository.save(order);
+            if (txOpt.isPresent()) {
+                com.fooddelivery.payments.model.Transaction tx = txOpt.get();
+                BigDecimal txCurrentRefund = tx.getAmountRefunded() != null ? tx.getAmountRefunded() : BigDecimal.ZERO;
+                tx.setAmountRefunded(txCurrentRefund.add(finalRefundAmount));
+                transactionRepository.save(tx);
+            }
         });
     }
 

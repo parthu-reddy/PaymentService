@@ -21,27 +21,26 @@ public class PaymentReconciliationJob {
     private static final Logger logger = LoggerFactory.getLogger(PaymentReconciliationJob.class);
 
     private final IPaymentIntentRepository paymentIntentRepository;
-    private final IOrderRepository orderRepository;
     private final PaymentGatewayOrchestrator orchestrator;
+    private final WebhookProcessingService webhookProcessingService;
 
     public PaymentReconciliationJob(
             IPaymentIntentRepository paymentIntentRepository,
-            IOrderRepository orderRepository,
-            PaymentGatewayOrchestrator orchestrator) {
+            PaymentGatewayOrchestrator orchestrator,
+            WebhookProcessingService webhookProcessingService) {
         this.paymentIntentRepository = paymentIntentRepository;
-        this.orderRepository = orderRepository;
         this.orchestrator = orchestrator;
+        this.webhookProcessingService = webhookProcessingService;
     }
 
-    // Run every 5 minutes
-    @Scheduled(fixedRate = 300000)
+    @Scheduled(fixedRateString = "${payment.reconciliation.interval:600000}")
     public void reconcileStuckPayments() {
         logger.info("Starting Payment Reconciliation Job");
 
-        // Find intents stuck in INITIATED for more than 15 minutes
+        // Find intents stuck in INITIATED for more than 10 minutes
         List<PaymentIntent> stuckIntents = paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(
                 IntentStatus.INITIATED, 
-                java.time.ZonedDateTime.now().minusMinutes(15)
+                java.time.ZonedDateTime.now().minusMinutes(10)
         );
 
         for (PaymentIntent intent : stuckIntents) {
@@ -50,14 +49,12 @@ public class PaymentReconciliationJob {
                 String status = orchestrator.getStrategy(intent.getGatewayName())
                         .verifyStatus(intent.getGatewayOrderId());
 
-                if ("SUCCESS".equalsIgnoreCase(status)) {
-                    intent.setStatus(IntentStatus.SUCCESS);
-                    Order order = intent.getOrder();
-                    order.setStatus(OrderStatus.PAID);
+                if ("SUCCESS".equalsIgnoreCase(status) || 
+                    "CAPTURED".equalsIgnoreCase(status) || 
+                    "PAID".equalsIgnoreCase(status)) {
                     
-                    paymentIntentRepository.save(intent);
-                    orderRepository.save(order);
-                    logger.info("Successfully reconciled payment intent to PAID: {}", intent.getId());
+                    logger.info("Payment intent {} was actually successful on gateway. Triggering fulfillment.", intent.getId());
+                    webhookProcessingService.handleSuccessfulPayment(intent.getGatewayOrderId());
                 } else if ("FAILED".equalsIgnoreCase(status)) {
                     intent.setStatus(IntentStatus.FAILED);
                     paymentIntentRepository.save(intent);

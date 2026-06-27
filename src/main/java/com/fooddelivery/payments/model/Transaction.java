@@ -39,4 +39,7 @@ public class Transaction extends BaseEntity {
 
     @Column(name = "captured_at")
     private ZonedDateTime capturedAt;
+
+    @Column(name = "amount_refunded", nullable = false)
+    private BigDecimal amountRefunded = BigDecimal.ZERO;
 }

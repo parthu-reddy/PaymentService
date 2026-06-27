@@ -10,4 +10,5 @@ import java.util.Optional;
 @Repository
 public interface ITransactionRepository extends JpaRepository<Transaction, UUID> {
     Optional<Transaction> findByGatewayPaymentId(String gatewayPaymentId);
+    Optional<Transaction> findFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(UUID paymentIntentId, String status);
 }

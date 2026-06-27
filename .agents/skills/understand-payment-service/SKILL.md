@@ -24,7 +24,7 @@ It uses Java 17, Spring Boot 3, PostgreSQL, Redis, and Flyway.
 3. **Resilience4j Circuit Breakers:** Protects outbound gateway calls. Fallbacks throw explicit 503 exceptions.
 4. **PII Masking & Privacy:** Scrubbing of raw mobile/emails before persisting webhook payloads to `webhook_deliveries`.
 5. **Cron Jobs:** 
-   - **Reconciliation:** Runs every 5 mins to sync `INITIATED` payments > 15mins old.
+   - **Reconciliation:** Runs every 10 mins to sync `INITIATED` payments > 10mins old.
    - **DLQ:** Auto-retries `FAILED` webhooks and transitions to `DEAD_LETTER`.
 6. **Webhook Verification & PII Masking**: Gateways send HMAC SHA-256 signed webhooks. We intercept the stream with `RequestCachingFilter`. The controller extracts the raw byte array to verify the signature *before* JSON parsing. Cashfree checks timestamps. Before saving the payload to the database audit log (`WebhookDelivery`), `WebhookProcessingService` actively masks PII (phones, emails) to comply with data privacy laws.
 7. **JSON Parsing & Dependency Injection**: We universally inject Spring's Jackson `ObjectMapper` (even for Vyapar REST calls) for standardized serialization, avoiding manual `org.json` instantiation where possible (except Razorpay which strictly requires it). Excluded `android-json` from `spring-boot-starter-test` to avoid conflicts with `org.json` at runtime.

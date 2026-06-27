@@ -8,7 +8,7 @@ This service has been upgraded for massive scale and resilience:
 - **Event-Driven (Kafka)**: Emits `PaymentSucceededEvent` to the `payment-events` topic so downstream services (like Kitchen/Delivery) can react instantly.
 - **Circuit Breakers (Resilience4j)**: External API calls are wrapped in circuit breakers. If a gateway goes down, the system gracefully degrades to a 503 instead of tying up threads.
 - **Automated Retry & DLQ**: Database lock exceptions trigger automated backoff retries. Failing webhooks are sent to a Dead Letter Queue (`DEAD_LETTER` status) via a background Cron job for manual review.
-- **Reconciliation Cron**: A scheduled job ensures no payment is lost. It actively queries gateways for `INITIATED` intents older than 15 minutes to reconcile missed webhooks.
+- **Reconciliation Cron**: A scheduled job ensures no payment is lost. It actively queries gateways for `INITIATED` intents older than 10 minutes to reconcile missed webhooks.
 - **PII Scrubbing**: Automatically scrubs raw mobile numbers and emails from stored webhook payloads for data privacy.
 
 ## Checkout User Experience
