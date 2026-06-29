@@ -28,7 +28,24 @@ public class WebhookController {
         this.orchestrator = orchestrator;
     }
 
+    @PostMapping("/razorpay")
+    public ResponseEntity<String> handleRazorpayWebhook(
+            HttpServletRequest request,
+            @RequestHeader(value = "x-razorpay-signature", required = false) String signature,
+            @RequestHeader(value = "x-razorpay-event-id", required = false) String eventId) {
 
+        return processWebhook(request, PaymentGateway.RAZORPAY.name(), signature, null, eventId);
+    }
+
+    @PostMapping("/cashfree")
+    public ResponseEntity<String> handleCashfreeWebhook(
+            HttpServletRequest request,
+            @RequestHeader(value = "x-webhook-signature", required = false) String signature,
+            @RequestHeader(value = "x-webhook-timestamp", required = false) String timestamp,
+            @RequestHeader(value = "x-webhook-event-id", required = false) String eventId) {
+
+        return processWebhook(request, PaymentGateway.CASHFREE.name(), signature, timestamp, eventId);
+    }
 
     @PostMapping("/vyapar")
     public ResponseEntity<String> handleVyaparWebhook(
