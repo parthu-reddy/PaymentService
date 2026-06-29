@@ -82,8 +82,16 @@ public class WebhookIntegrationTest {
                 .header("X-VyaparGateway-Signature", "c0e76bf082a4b56243a56a9e9a5c9ed1f038a5af1ab8179d2b6ebb11e9ac864f"))
                 .andExpect(status().isOk());
 
-        Thread.sleep(1000);
-        List<WebhookDelivery> deliveries = webhookDeliveryRepository.findAll();
+        long endTime = System.currentTimeMillis() + 5000;
+        List<WebhookDelivery> deliveries = null;
+        while (System.currentTimeMillis() < endTime) {
+            deliveries = webhookDeliveryRepository.findAll();
+            if (!deliveries.isEmpty() && deliveries.get(0).getProcessingStatus() == DeliveryStatus.COMPLETED) {
+                break;
+            }
+            Thread.sleep(500);
+        }
+
         assertEquals(1, deliveries.size());
         
         WebhookDelivery delivery = deliveries.get(0);

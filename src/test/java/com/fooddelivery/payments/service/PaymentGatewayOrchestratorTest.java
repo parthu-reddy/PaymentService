@@ -1,43 +1,71 @@
 package com.fooddelivery.payments.service;
 
 import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
+import com.fooddelivery.payments.service.gateway.PaymentRequestContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Arrays;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class PaymentGatewayOrchestratorTest {
+@ExtendWith(MockitoExtension.class)
+class PaymentGatewayOrchestratorTest {
+
+    @Mock
+    private IPaymentGatewayStrategy mockStrategy;
 
     private PaymentGatewayOrchestrator orchestrator;
-    private IPaymentGatewayStrategy razorpayStrategy;
-    private IPaymentGatewayStrategy cashfreeStrategy;
 
     @BeforeEach
     void setUp() {
-        razorpayStrategy = mock(IPaymentGatewayStrategy.class);
-        when(razorpayStrategy.getGatewayName()).thenReturn("RAZORPAY");
-
-        cashfreeStrategy = mock(IPaymentGatewayStrategy.class);
-        when(cashfreeStrategy.getGatewayName()).thenReturn("CASHFREE");
-
-        orchestrator = new PaymentGatewayOrchestrator(Arrays.asList(razorpayStrategy, cashfreeStrategy));
+        when(mockStrategy.getGatewayName()).thenReturn("MOCK_GATEWAY");
+        orchestrator = new PaymentGatewayOrchestrator(List.of(mockStrategy));
     }
 
     @Test
-    void testGetStrategy_Success() {
-        IPaymentGatewayStrategy strategy = orchestrator.getStrategy("RAZORPAY");
-        assertEquals("RAZORPAY", strategy.getGatewayName());
+    void getStrategy_ShouldReturnCorrectStrategy() {
+        IPaymentGatewayStrategy strategy = orchestrator.getStrategy("MOCK_GATEWAY");
+        assertThat(strategy).isEqualTo(mockStrategy);
     }
 
     @Test
-    void testGetStrategy_NotFound() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            orchestrator.getStrategy("UNKNOWN");
-        });
+    void getStrategy_ShouldThrowExceptionForUnsupportedGateway() {
+        assertThatThrownBy(() -> orchestrator.getStrategy("UNSUPPORTED_GATEWAY"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported gateway");
+    }
+
+    @Test
+    void createOrder_ShouldDelegateToStrategy() {
+        PaymentRequestContext context = PaymentRequestContext.builder()
+                .internalOrderId(java.util.UUID.randomUUID())
+                .amountInInr(new java.math.BigDecimal("100.00"))
+                .receiptRef("receipt")
+                .customerPhone("1234567890")
+                .build();
+        when(mockStrategy.createOrder(context)).thenReturn("ORDER_123");
+
+        String orderId = orchestrator.createOrder("MOCK_GATEWAY", context);
+
+        assertThat(orderId).isEqualTo("ORDER_123");
+        verify(mockStrategy).createOrder(context);
+    }
+
+    @Test
+    void initiateRefund_ShouldDelegateToStrategy() {
+        when(mockStrategy.initiateRefund("GATEWAY_ORDER_123", 100.0, "Customer Request"))
+                .thenReturn(true);
+
+        boolean result = orchestrator.initiateRefund("MOCK_GATEWAY", "GATEWAY_ORDER_123", 100.0, "Customer Request");
+
+        assertThat(result).isTrue();
+        verify(mockStrategy).initiateRefund("GATEWAY_ORDER_123", 100.0, "Customer Request");
     }
 }
