@@ -27,10 +27,10 @@ public class PaymentReconciliationJobTest {
     private IPaymentIntentRepository paymentIntentRepository;
 
     @Mock
-    private IOrderRepository orderRepository;
+    private PaymentGatewayOrchestrator orchestrator;
 
     @Mock
-    private PaymentGatewayOrchestrator orchestrator;
+    private WebhookProcessingService webhookProcessingService;
 
     @Mock
     private IPaymentGatewayStrategy strategy;
@@ -45,10 +45,6 @@ public class PaymentReconciliationJobTest {
         intent.setGatewayOrderId("vyapar_123");
         intent.setStatus(IntentStatus.INITIATED);
         intent.setCreatedAt(java.time.ZonedDateTime.now().minusMinutes(20));
-        
-        Order order = new Order();
-        order.setStatus(OrderStatus.CREATED);
-        intent.setOrder(order);
 
         when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(IntentStatus.INITIATED), any())).thenReturn(List.of(intent));
         when(orchestrator.getStrategy("VYAPAR")).thenReturn(strategy);
@@ -56,9 +52,6 @@ public class PaymentReconciliationJobTest {
 
         job.reconcileStuckPayments();
 
-        assertEquals(IntentStatus.SUCCESS, intent.getStatus());
-        assertEquals(OrderStatus.PAID, order.getStatus());
-        verify(paymentIntentRepository).save(intent);
-        verify(orderRepository).save(order);
+        verify(webhookProcessingService).handleSuccessfulPayment("vyapar_123");
     }
 }

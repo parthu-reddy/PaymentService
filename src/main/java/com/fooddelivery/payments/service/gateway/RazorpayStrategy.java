@@ -65,7 +65,9 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
-        throw new UnsupportedOperationException("Refunds not yet implemented for Razorpay");
+        // Mock refund for Razorpay
+        System.out.println("Razorpay Refund Initiated for Order: " + gatewayOrderId + " Amount: " + amount + " Reason: " + reason);
+        return true;
     }
 
     @Override

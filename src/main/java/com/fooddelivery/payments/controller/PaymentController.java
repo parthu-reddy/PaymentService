@@ -56,4 +56,38 @@ public class PaymentController {
             return ResponseEntity.status(500).body("Internal server error: " + e.getMessage());
         }
     }
+
+    public static class RefundRequest {
+        @NotNull(message = "gatewayOrderId cannot be null")
+        public String gatewayOrderId;
+
+        @NotNull(message = "amountInInr cannot be null")
+        @Positive(message = "amountInInr must be greater than zero")
+        public BigDecimal amountInInr;
+
+        public String reason;
+    }
+
+    @PostMapping("/refund")
+    public ResponseEntity<String> refundOrder(
+            @RequestParam String gateway,
+            @Valid @RequestBody RefundRequest request) {
+        try {
+            boolean success = orchestrator.initiateRefund(
+                    gateway,
+                    request.gatewayOrderId,
+                    request.amountInInr.doubleValue(),
+                    request.reason
+            );
+            if (success) {
+                return ResponseEntity.ok("Refund initiated successfully");
+            } else {
+                return ResponseEntity.status(400).body("Refund failed");
+            }
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Invalid request: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Internal server error: " + e.getMessage());
+        }
+    }
 }

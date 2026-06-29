@@ -33,4 +33,8 @@ public class PaymentGatewayOrchestrator {
     public String createOrder(String gatewayName, PaymentRequestContext context) {
         return getStrategy(gatewayName).createOrder(context);
     }
+
+    public boolean initiateRefund(String gatewayName, String gatewayOrderId, double amount, String reason) {
+        return getStrategy(gatewayName).initiateRefund(gatewayOrderId, amount, reason);
+    }
 }
