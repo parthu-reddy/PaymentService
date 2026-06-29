@@ -12,9 +12,8 @@ import com.fooddelivery.payments.model.enums.IntentStatus;
 @Setter
 public class PaymentIntent extends BaseEntity {
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
-    private Order order;
+    @Column(name = "order_id", nullable = false)
+    private String orderId;
 
     @Column(name = "gateway_name", nullable = false)
     private String gatewayName;

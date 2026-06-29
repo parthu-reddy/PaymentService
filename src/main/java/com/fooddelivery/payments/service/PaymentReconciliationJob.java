@@ -1,10 +1,7 @@
 package com.fooddelivery.payments.service;
 
-import com.fooddelivery.payments.model.Order;
 import com.fooddelivery.payments.model.PaymentIntent;
 import com.fooddelivery.payments.model.enums.IntentStatus;
-import com.fooddelivery.payments.model.enums.OrderStatus;
-import com.fooddelivery.payments.repository.IOrderRepository;
 import com.fooddelivery.payments.repository.IPaymentIntentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

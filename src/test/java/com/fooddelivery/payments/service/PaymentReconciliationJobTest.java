@@ -1,23 +1,23 @@
 package com.fooddelivery.payments.service;
 
-import com.fooddelivery.payments.model.Order;
 import com.fooddelivery.payments.model.PaymentIntent;
 import com.fooddelivery.payments.model.enums.IntentStatus;
-import com.fooddelivery.payments.model.enums.OrderStatus;
-import com.fooddelivery.payments.repository.IOrderRepository;
 import com.fooddelivery.payments.repository.IPaymentIntentRepository;
-import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.TransactionStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,33 +25,38 @@ public class PaymentReconciliationJobTest {
 
     @Mock
     private IPaymentIntentRepository paymentIntentRepository;
-
     @Mock
-    private PaymentGatewayOrchestrator orchestrator;
-
+    private PaymentEventPublisher eventPublisher;
     @Mock
-    private WebhookProcessingService webhookProcessingService;
+    private TransactionTemplate transactionTemplate;
 
-    @Mock
-    private IPaymentGatewayStrategy strategy;
-
-    @InjectMocks
     private PaymentReconciliationJob job;
 
-    @Test
-    void testReconcileStuckPayments_Success() {
-        PaymentIntent intent = new PaymentIntent();
-        intent.setGatewayName("VYAPAR");
-        intent.setGatewayOrderId("vyapar_123");
-        intent.setStatus(IntentStatus.INITIATED);
-        intent.setCreatedAt(java.time.ZonedDateTime.now().minusMinutes(20));
+    @BeforeEach
+    void setUp() {
+        job = new PaymentReconciliationJob(paymentIntentRepository, eventPublisher, transactionTemplate);
+        
+        lenient().doAnswer(invocation -> {
+            java.util.function.Consumer<TransactionStatus> action = invocation.getArgument(0);
+            action.accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
+    }
 
-        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(IntentStatus.INITIATED), any())).thenReturn(List.of(intent));
-        when(orchestrator.getStrategy("VYAPAR")).thenReturn(strategy);
-        when(strategy.verifyStatus("vyapar_123")).thenReturn("SUCCESS");
+    @Test
+    void testReconcileStuckPayments() {
+        PaymentIntent intent = new PaymentIntent();
+        intent.setGatewayOrderId("ord_123");
+        intent.setStatus(IntentStatus.INITIATED);
+        intent.setAmount(new BigDecimal("100.00"));
+        intent.setOrderId(UUID.randomUUID().toString());
+
+        when(paymentIntentRepository.findByStatusAndCreatedAtBefore(eq(IntentStatus.INITIATED), any(LocalDateTime.class)))
+                .thenReturn(List.of(intent));
 
         job.reconcileStuckPayments();
 
-        verify(webhookProcessingService).handleSuccessfulPayment("vyapar_123");
+        assertEquals(IntentStatus.SUCCESS, intent.getStatus());
+        verify(paymentIntentRepository).save(intent);
     }
 }
