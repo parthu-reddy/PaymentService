@@ -53,10 +53,10 @@ public class WebhookProcessingServiceTest {
         service = new WebhookProcessingService(
                 webhookDeliveryRepository,
                 paymentIntentRepository,
-                eventPublisher,
-                transactionTemplate,
                 transactionRepository,
-                objectMapper);
+                objectMapper,
+                eventPublisher,
+                transactionTemplate);
 
         lenient().doAnswer(invocation -> {
             java.util.function.Consumer<TransactionStatus> action = invocation.getArgument(0);

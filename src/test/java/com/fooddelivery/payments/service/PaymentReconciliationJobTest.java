@@ -8,8 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.transaction.TransactionStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -26,21 +24,15 @@ public class PaymentReconciliationJobTest {
     @Mock
     private IPaymentIntentRepository paymentIntentRepository;
     @Mock
-    private PaymentEventPublisher eventPublisher;
+    private PaymentGatewayOrchestrator orchestrator;
     @Mock
-    private TransactionTemplate transactionTemplate;
+    private WebhookProcessingService webhookProcessingService;
 
     private PaymentReconciliationJob job;
 
     @BeforeEach
     void setUp() {
-        job = new PaymentReconciliationJob(paymentIntentRepository, eventPublisher, transactionTemplate);
-        
-        lenient().doAnswer(invocation -> {
-            java.util.function.Consumer<TransactionStatus> action = invocation.getArgument(0);
-            action.accept(null);
-            return null;
-        }).when(transactionTemplate).executeWithoutResult(any());
+        job = new PaymentReconciliationJob(paymentIntentRepository, orchestrator, webhookProcessingService);
     }
 
     @Test
@@ -56,7 +48,6 @@ public class PaymentReconciliationJobTest {
 
         job.reconcileStuckPayments();
 
-        assertEquals(IntentStatus.SUCCESS, intent.getStatus());
-        verify(paymentIntentRepository).save(intent);
+        verify(orchestrator).reconcilePayment(intent);
     }
 }
