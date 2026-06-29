@@ -1,60 +1,37 @@
-# Food Delivery Payment Gateway Service
+# Payment Gateway Integration
 
-This is a robust, production-ready payment gateway integration service built using Java 17 and Spring Boot 3. 
-It supports multiple payment gateways like **Vyapar**, **Razorpay**, and **Cashfree** through a Strategy Pattern, ensuring extensibility, fault tolerance, and security via HMAC signature validations and idempotency controls.
+The Payment Service handles all interactions with external payment providers (e.g., Stripe, Razorpay, Vyapar). It provides a generic interface that abstracts away gateway-specific implementation details.
 
-## Enterprise Architecture (Day 2 Features)
-This service has been upgraded for massive scale and resilience:
-- **Event-Driven (Kafka)**: Emits `PaymentSucceededEvent` to the `payment-events` topic so downstream services (like Kitchen/Delivery) can react instantly.
-- **Circuit Breakers (Resilience4j)**: External API calls are wrapped in circuit breakers. If a gateway goes down, the system gracefully degrades to a 503 instead of tying up threads.
-- **Automated Retry & DLQ**: Database lock exceptions trigger automated backoff retries. Failing webhooks are sent to a Dead Letter Queue (`DEAD_LETTER` status) via a background Cron job for manual review.
-- **Reconciliation Cron**: A scheduled job ensures no payment is lost. It actively queries gateways for `INITIATED` intents older than 10 minutes to reconcile missed webhooks.
-- **PII Scrubbing**: Automatically scrubs raw mobile numbers and emails from stored webhook payloads for data privacy.
+## Responsibilities
 
-## Checkout User Experience
-We provide a seamless drop-in checkout experience across all gateways.
+1. **Payment Intent Creation**: Generates payment URLs or client secrets for the frontend.
+2. **Webhook Processing**: Securely receives async webhooks from external gateways when payments succeed, fail, or refund.
+3. **Idempotency & Security**: Uses `IdempotencyFilter` to prevent double-charging and `RequestCachingFilter` (from CommonLibrary) to allow HMAC signature verification on incoming webhook payloads.
 
-### Vyapar UPI Checkout
-Minimalist UPI QR code generation.
-![Vyapar QR Checkout](./assets/images/vyapar_qr_checkout_1782489255418.png)
+## System Flow & Webhooks
 
-### Razorpay Modal
-Sleek credit card checkout directly embedded over the app.
-![Razorpay Modal](./assets/images/razorpay_checkout_flow_1782489266773.png)
+```mermaid
+sequenceDiagram
+    participant API as PaymentGatewayController
+    participant Webhook as WebhookController
+    participant Strategy as Gateway Strategy
+    participant DB as Payment DB
+    participant K as Kafka (payment-events)
 
-### Cashfree Redirect
-Premium loading state for gateway redirects.
-![Cashfree Redirect](./assets/images/cashfree_checkout_flow_1782489280146.png)
-
-## Prerequisites
-- Java 17+
-- Maven 3.8+
-- Docker & Docker Compose (for Postgres, Redis, and Kafka)
-
-## Setup and Installation
-
-### 1. Run Local Infrastructure
-To spin up PostgreSQL, Redis, and Kafka locally:
-```bash
-docker-compose up -d
+    API->>Strategy: Create Payment Intent
+    Strategy-->>API: Gateway URL
+    
+    note over Webhook,Strategy: User pays on external gateway
+    
+    Strategy->>Webhook: Async Webhook Delivery
+    Webhook->>Webhook: Verify HMAC Signature (CachedBody)
+    Webhook->>DB: Save WebhookDelivery (Idempotent)
+    Webhook->>DB: Update Transaction Status (SUCCESS)
+    Webhook->>K: Publish PAYMENT_SUCCESS
 ```
 
-### 2. Configure Environment Variables
-In production, ensure you supply the following environment variables:
-- `DB_URL`
-- `DB_USERNAME`
-- `DB_PASSWORD`
-- `REDIS_HOST`
-- `KAFKA_BOOTSTRAP_SERVERS`
-- Gateway keys (e.g. `VYAPAR_API_KEY`, `RAZORPAY_KEY_ID`, `CASHFREE_CLIENT_ID`)
+## Setup & Configuration
 
-### 3. Build and Run
-```bash
-./mvnw clean package -DskipTests
-java -jar target/payment-service-0.0.1-SNAPSHOT.jar
-```
-
-## Security Considerations
-- **No Floating Point for Currency**: Core database types utilize `DECIMAL(15,2)` or integer-based subunits (Paise for INR).
-- **Constant-Time Verification**: HMAC verification uses constant-time equals to prevent timing attacks.
-- **Replay Protection**: If `Event-ID` is missing from headers, a deterministic SHA-256 hash of the payload is used to trigger idempotency locks.
+1. Connects to `payment_db`.
+2. Requires `CommonLibrary` for the custom request wrapping filters and standard event serialization.
+3. Start using `mvn spring-boot:run`. Flyway initializes the `payment_intents`, `transactions`, `refunds`, and `webhook_deliveries` tables.
