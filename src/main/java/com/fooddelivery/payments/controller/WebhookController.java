@@ -62,11 +62,17 @@ public class WebhookController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing Signature");
             }
 
-            ContentCachingRequestWrapper wrapper = (ContentCachingRequestWrapper) request;
-            byte[] rawBodyBytes = wrapper.getContentAsByteArray();
-            if (rawBodyBytes.length == 0) {
-                // If the stream hasn't been consumed by any DTO yet, we must consume it here
-                rawBodyBytes = wrapper.getInputStream().readAllBytes();
+            byte[] rawBodyBytes;
+            if (request instanceof com.fooddelivery.common.filter.RequestCachingFilter.CachedBodyHttpServletRequest) {
+                rawBodyBytes = ((com.fooddelivery.common.filter.RequestCachingFilter.CachedBodyHttpServletRequest) request).getCachedBody();
+            } else if (request instanceof ContentCachingRequestWrapper) {
+                ContentCachingRequestWrapper wrapper = (ContentCachingRequestWrapper) request;
+                rawBodyBytes = wrapper.getContentAsByteArray();
+                if (rawBodyBytes.length == 0) {
+                    rawBodyBytes = wrapper.getInputStream().readAllBytes();
+                }
+            } else {
+                rawBodyBytes = request.getInputStream().readAllBytes();
             }
             String rawBody = new String(rawBodyBytes, StandardCharsets.UTF_8);
 

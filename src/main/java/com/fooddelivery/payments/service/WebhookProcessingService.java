@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.transaction.support.TransactionTemplate;
-import com.fooddelivery.payments.model.PaymentSucceededEvent;
+import com.fooddelivery.common.event.PaymentSucceededEvent;
 
 import java.math.BigDecimal;
 import java.util.Optional;

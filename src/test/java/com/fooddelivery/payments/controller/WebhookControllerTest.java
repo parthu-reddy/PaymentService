@@ -3,7 +3,7 @@ package com.fooddelivery.payments.controller;
 import com.fooddelivery.payments.service.PaymentGatewayOrchestrator;
 import com.fooddelivery.payments.service.WebhookProcessingService;
 import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
-import com.fooddelivery.payments.filter.RequestCachingFilter;
+import com.fooddelivery.common.filter.RequestCachingFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

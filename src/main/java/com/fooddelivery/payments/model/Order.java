@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
-import com.fooddelivery.payments.model.enums.OrderStatus;
+import com.fooddelivery.common.enums.OrderStatus;
 
 @Entity
 @Table(name = "orders")

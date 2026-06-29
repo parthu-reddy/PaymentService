@@ -1,6 +1,6 @@
 package com.fooddelivery.payments.service;
 
-import com.fooddelivery.payments.model.PaymentSucceededEvent;
+import com.fooddelivery.common.event.PaymentSucceededEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
