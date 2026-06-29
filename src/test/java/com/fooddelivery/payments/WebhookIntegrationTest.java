@@ -78,9 +78,11 @@ public class WebhookIntegrationTest {
         mockMvc.perform(post("/api/v1/webhooks/vyapar")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload)
-                .header("Idempotency-Key", "webhook_idemp_123"))
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
+                .header("X-VyaparGateway-Signature", "c0e76bf082a4b56243a56a9e9a5c9ed1f038a5af1ab8179d2b6ebb11e9ac864f"))
                 .andExpect(status().isOk());
 
+        Thread.sleep(1000);
         List<WebhookDelivery> deliveries = webhookDeliveryRepository.findAll();
         assertEquals(1, deliveries.size());
         
