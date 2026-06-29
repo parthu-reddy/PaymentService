@@ -19,10 +19,12 @@ import java.util.UUID;
 public class PaymentController {
 
     private final PaymentGatewayOrchestrator orchestrator;
+    private final com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository;
 
     @Autowired
-    public PaymentController(PaymentGatewayOrchestrator orchestrator) {
+    public PaymentController(PaymentGatewayOrchestrator orchestrator, com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository) {
         this.orchestrator = orchestrator;
+        this.paymentIntentRepository = paymentIntentRepository;
     }
 
     public static class CreateOrderRequest {
@@ -49,6 +51,15 @@ public class PaymentController {
                 .build();
             
             String intentOrOrderId = orchestrator.createOrder(gateway, context);
+
+            com.fooddelivery.payments.model.PaymentIntent intent = new com.fooddelivery.payments.model.PaymentIntent();
+            intent.setOrderId(request.internalOrderId);
+            intent.setGatewayName(gateway);
+            intent.setGatewayOrderId(intentOrOrderId);
+            intent.setAmount(request.amountInInr);
+            intent.setIdempotencyKey(UUID.randomUUID().toString());
+            paymentIntentRepository.save(intent);
+
             return ResponseEntity.ok(intentOrOrderId);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid request: " + e.getMessage());

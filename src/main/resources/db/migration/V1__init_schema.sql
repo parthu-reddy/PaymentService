@@ -1,39 +1,8 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-CREATE TABLE merchants (  
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  
-    name VARCHAR(255) NOT NULL,  
-    email VARCHAR(255) UNIQUE NOT NULL,  
-    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',  
-    settlement_account_id VARCHAR(255),  
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,  
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  
-);
-
-CREATE TABLE customers (  
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  
-    phone_number VARCHAR(15) UNIQUE NOT NULL,  
-    email VARCHAR(255),  
-    full_name VARCHAR(255),  
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE orders (  
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  
-    customer_id UUID NOT NULL REFERENCES customers(id),  
-    merchant_id UUID NOT NULL REFERENCES merchants(id),  
-    total_amount DECIMAL(15,2) NOT NULL CHECK (total_amount > 0),  
-    currency VARCHAR(3) NOT NULL DEFAULT 'INR',  
-    status VARCHAR(50) NOT NULL DEFAULT 'CREATED',   
-    receipt_reference VARCHAR(255),  
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,  
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  
-);
-
 CREATE TABLE payment_intents (  
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  
-    order_id UUID NOT NULL REFERENCES orders(id),  
+    order_id VARCHAR(255) NOT NULL,  
     gateway_name VARCHAR(50) NOT NULL,   
     gateway_order_id VARCHAR(255) UNIQUE NOT NULL,   
     amount DECIMAL(15,2) NOT NULL,  

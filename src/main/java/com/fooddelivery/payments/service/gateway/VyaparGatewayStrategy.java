@@ -19,7 +19,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 
+import org.springframework.context.annotation.Profile;
+
 @Service
+@Profile("!debug")
 public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(VyaparGatewayStrategy.class);
