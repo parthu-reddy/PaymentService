@@ -29,9 +29,9 @@ public class WebhookProcessingService {
     
     private final IWebhookDeliveryRepository webhookDeliveryRepository;
     private final IPaymentIntentRepository paymentIntentRepository;
-        private final ITransactionRepository transactionRepository;
+    private final ITransactionRepository transactionRepository;
     private final ObjectMapper objectMapper;
-    private final PaymentEventPublisher eventPublisher;
+    private final com.fooddelivery.payments.repository.IOutboxEventRepository outboxEventRepository;
     private final TransactionTemplate transactionTemplate;
 
     public WebhookProcessingService(
@@ -39,13 +39,13 @@ public class WebhookProcessingService {
             IPaymentIntentRepository paymentIntentRepository,
             ITransactionRepository transactionRepository,
             ObjectMapper objectMapper,
-            PaymentEventPublisher eventPublisher,
+            com.fooddelivery.payments.repository.IOutboxEventRepository outboxEventRepository,
             TransactionTemplate transactionTemplate) {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.transactionRepository = transactionRepository;
         this.objectMapper = objectMapper;
-        this.eventPublisher = eventPublisher;
+        this.outboxEventRepository = outboxEventRepository;
         this.transactionTemplate = transactionTemplate;
     }
 
@@ -174,15 +174,29 @@ public class WebhookProcessingService {
 
         intent.setStatus(IntentStatus.SUCCESS);
                 
-        eventPublisher.publishPaymentSuccess(new PaymentSucceededEvent(
+        PaymentSucceededEvent event = new PaymentSucceededEvent(
                 intent.getOrderId(),
                 intent.getGatewayOrderId(),
                 intent.getAmount(),
                 intent.getGatewayName()
-        ));
+        );
 
         transactionTemplate.executeWithoutResult(status -> {
             paymentIntentRepository.save(intent);
+            try {
+                com.fooddelivery.payments.entity.OutboxEventEntity outbox = com.fooddelivery.payments.entity.OutboxEventEntity.builder()
+                        .id(java.util.UUID.randomUUID())
+                        .aggregateType("PAYMENT")
+                        .aggregateId(intent.getOrderId())
+                        .eventType("PaymentCompletedEvent")
+                        .payload(objectMapper.writeValueAsString(event))
+                        .createdAt(java.time.LocalDateTime.now())
+                        .status("UNPROCESSED")
+                        .build();
+                outboxEventRepository.save(outbox);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save PaymentCompletedEvent to outbox", e);
+            }
         });
     }
 
@@ -200,15 +214,29 @@ public class WebhookProcessingService {
 
         intent.setStatus(IntentStatus.FAILED);
                 
-        eventPublisher.publishPaymentFailure(new com.fooddelivery.common.event.PaymentFailedEvent(
+        com.fooddelivery.common.event.PaymentFailedEvent event = new com.fooddelivery.common.event.PaymentFailedEvent(
                 java.util.UUID.fromString(intent.getOrderId()),
                 intent.getGatewayOrderId(),
                 intent.getGatewayName(),
                 failureReason
-        ));
+        );
 
         transactionTemplate.executeWithoutResult(status -> {
             paymentIntentRepository.save(intent);
+            try {
+                com.fooddelivery.payments.entity.OutboxEventEntity outbox = com.fooddelivery.payments.entity.OutboxEventEntity.builder()
+                        .id(java.util.UUID.randomUUID())
+                        .aggregateType("PAYMENT")
+                        .aggregateId(intent.getOrderId())
+                        .eventType("PaymentFailedEvent")
+                        .payload(objectMapper.writeValueAsString(event))
+                        .createdAt(java.time.LocalDateTime.now())
+                        .status("UNPROCESSED")
+                        .build();
+                outboxEventRepository.save(outbox);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save PaymentFailedEvent to outbox", e);
+            }
         });
     }
 

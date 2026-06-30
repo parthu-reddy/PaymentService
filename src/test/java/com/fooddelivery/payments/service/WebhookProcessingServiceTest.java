@@ -10,10 +10,13 @@ import com.fooddelivery.payments.repository.ITransactionRepository;
 import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.fooddelivery.payments.repository.IOutboxEventRepository;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.TransactionStatus;
@@ -38,10 +41,12 @@ public class WebhookProcessingServiceTest {
     @Mock
     private ObjectMapper objectMapper;
     @Mock
-    private PaymentEventPublisher eventPublisher;
+    private IOutboxEventRepository outboxEventRepository;
+
     @Mock
     private TransactionTemplate transactionTemplate;
 
+    @InjectMocks
     private WebhookProcessingService service;
 
     @Captor
@@ -55,7 +60,7 @@ public class WebhookProcessingServiceTest {
                 paymentIntentRepository,
                 transactionRepository,
                 objectMapper,
-                eventPublisher,
+                outboxEventRepository,
                 transactionTemplate);
 
         lenient().doAnswer(invocation -> {
