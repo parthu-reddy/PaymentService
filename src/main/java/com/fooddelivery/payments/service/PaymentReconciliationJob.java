@@ -53,8 +53,7 @@ public class PaymentReconciliationJob {
                     logger.info("Payment intent {} was actually successful on gateway. Triggering fulfillment.", intent.getId());
                     webhookProcessingService.handleSuccessfulPayment(intent.getGatewayOrderId());
                 } else if ("FAILED".equalsIgnoreCase(status)) {
-                    intent.setStatus(IntentStatus.FAILED);
-                    paymentIntentRepository.save(intent);
+                    webhookProcessingService.handleFailedPayment(intent.getGatewayOrderId(), "Reconciliation determined payment failed");
                     logger.info("Reconciled payment intent to FAILED: {}", intent.getId());
                 }
             } catch (Exception e) {

@@ -131,25 +131,31 @@ public class WebhookProcessingService {
         
         if ("payment.success".equals(eventType)) {
             handleSuccessfulPayment(gatewayOrderId);
+        } else if ("payment.failed".equals(eventType)) {
+            handleFailedPayment(gatewayOrderId, "Vyapar payment failed");
         } else if ("refund.success".equals(eventType)) {
             handleRefundSuccess(gatewayOrderId, rootNode);
         }
     }
 
     private void handleRazorpayEvent(String eventType, JsonNode rootNode) {
-        if ("order.paid".equals(eventType)) {
-            String gatewayOrderId = rootNode.path("payload").path("payment").path("entity").path("order_id").asText();
-            if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
+        String gatewayOrderId = rootNode.path("payload").path("payment").path("entity").path("order_id").asText();
+        if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
+            if ("order.paid".equals(eventType)) {
                 handleSuccessfulPayment(gatewayOrderId);
+            } else if ("payment.failed".equals(eventType)) {
+                handleFailedPayment(gatewayOrderId, "Razorpay payment failed");
             }
         }
     }
 
     private void handleCashfreeEvent(String eventType, JsonNode rootNode) {
-        if ("PAYMENT_SUCCESS_WEBHOOK".equals(eventType)) {
-            String gatewayOrderId = rootNode.path("data").path("order").path("order_id").asText();
-            if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
+        String gatewayOrderId = rootNode.path("data").path("order").path("order_id").asText();
+        if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
+            if ("PAYMENT_SUCCESS_WEBHOOK".equals(eventType)) {
                 handleSuccessfulPayment(gatewayOrderId);
+            } else if ("PAYMENT_FAILED_WEBHOOK".equals(eventType)) {
+                handleFailedPayment(gatewayOrderId, "Cashfree payment failed");
             }
         }
     }
@@ -166,7 +172,7 @@ public class WebhookProcessingService {
             return;
         }
 
-                intent.setStatus(IntentStatus.SUCCESS);
+        intent.setStatus(IntentStatus.SUCCESS);
                 
         eventPublisher.publishPaymentSuccess(new PaymentSucceededEvent(
                 intent.getOrderId(),
@@ -177,7 +183,33 @@ public class WebhookProcessingService {
 
         transactionTemplate.executeWithoutResult(status -> {
             paymentIntentRepository.save(intent);
-                    });
+        });
+    }
+
+    public void handleFailedPayment(String gatewayOrderId, String failureReason) {
+        Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
+        if (intentOpt.isEmpty()) {
+            throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
+        }
+        
+        PaymentIntent intent = intentOpt.get();
+        if (intent.getStatus() == IntentStatus.FAILED || intent.getStatus() == IntentStatus.SUCCESS) {
+            logger.info("PaymentIntent {} is already in terminal state {}.", intent.getId(), intent.getStatus());
+            return;
+        }
+
+        intent.setStatus(IntentStatus.FAILED);
+                
+        eventPublisher.publishPaymentFailure(new com.fooddelivery.common.event.PaymentFailedEvent(
+                java.util.UUID.fromString(intent.getOrderId()),
+                intent.getGatewayOrderId(),
+                intent.getGatewayName(),
+                failureReason
+        ));
+
+        transactionTemplate.executeWithoutResult(status -> {
+            paymentIntentRepository.save(intent);
+        });
     }
 
     public void handleRefundSuccess(String gatewayOrderId, JsonNode rootNode) {

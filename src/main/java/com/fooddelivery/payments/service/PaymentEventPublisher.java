@@ -12,9 +12,9 @@ public class PaymentEventPublisher {
     private static final Logger logger = LoggerFactory.getLogger(PaymentEventPublisher.class);
     private static final String TOPIC = "payment-events";
 
-    private final KafkaTemplate<String, PaymentSucceededEvent> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public PaymentEventPublisher(KafkaTemplate<String, PaymentSucceededEvent> kafkaTemplate) {
+    public PaymentEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -26,6 +26,15 @@ public class PaymentEventPublisher {
             // We log the error but don't fail the transaction, as Kafka might be down
             // In a robust system, we would save to an 'outbox' table first.
             logger.error("Failed to publish payment success event to Kafka for order: {}", event.orderId(), e);
+        }
+    }
+
+    public void publishPaymentFailure(com.fooddelivery.common.event.PaymentFailedEvent event) {
+        try {
+            logger.info("Publishing payment failure event for order: {}", event.orderId());
+            kafkaTemplate.send(TOPIC, event.orderId().toString(), event);
+        } catch (Exception e) {
+            logger.error("Failed to publish payment failure event to Kafka for order: {}", event.orderId(), e);
         }
     }
 }
