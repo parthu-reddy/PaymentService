@@ -60,6 +60,6 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     public String verifyStatus(String gatewayOrderId) {
-        return "SUCCESS";
+        return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
     }
 }

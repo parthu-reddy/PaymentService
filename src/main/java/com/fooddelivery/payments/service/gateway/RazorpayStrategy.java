@@ -73,6 +73,6 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
     @Override
     public String verifyStatus(String gatewayOrderId) {
         // Razorpay API call to get order status
-        return "SUCCESS";
+        return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
     }
 }

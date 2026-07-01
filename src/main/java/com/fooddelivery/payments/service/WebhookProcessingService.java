@@ -61,8 +61,11 @@ public class WebhookProcessingService {
       backoff = @Backoff(delay = 1000, multiplier = 2)
     )
     public void processWebhookAsync(String eventId, String gatewayName, String rawBody) {
-        WebhookDelivery delivery = new WebhookDelivery();
-        delivery.setEventId(eventId);
+        WebhookDelivery delivery = webhookDeliveryRepository.findByEventId(eventId).orElseGet(() -> {
+            WebhookDelivery newDel = new WebhookDelivery();
+            newDel.setEventId(eventId);
+            return newDel;
+        });
         delivery.setGatewayName(gatewayName);
         
         String eventType = "UNKNOWN";
@@ -89,6 +92,9 @@ public class WebhookProcessingService {
             
             delivery.setProcessingStatus(DeliveryStatus.COMPLETED);
             webhookDeliveryRepository.save(delivery);
+        } catch (org.springframework.dao.CannotAcquireLockException | org.springframework.dao.DeadlockLoserDataAccessException e) {
+            logger.warn("Transient locking failure for webhook event: {}. Will be retried.", eventId);
+            throw e;
         } catch (Exception e) {
             logger.error("Failed to process webhook event: {}", eventId, e);
             delivery.setProcessingStatus(DeliveryStatus.FAILED);
@@ -161,37 +167,37 @@ public class WebhookProcessingService {
     }
 
     public void handleSuccessfulPayment(String gatewayOrderId) {
-        Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
-        if (intentOpt.isEmpty()) {
-            throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
-        }
-        
-        PaymentIntent intent = intentOpt.get();
-        if (intent.getStatus() == IntentStatus.SUCCESS) {
-            logger.info("PaymentIntent {} is already marked as SUCCESS.", intent.getId());
-            return;
-        }
-
-        intent.setStatus(IntentStatus.SUCCESS);
-                
-        PaymentSucceededEvent event = new PaymentSucceededEvent(
-                intent.getOrderId(),
-                intent.getGatewayOrderId(),
-                intent.getAmount(),
-                intent.getGatewayName()
-        );
-
         transactionTemplate.executeWithoutResult(status -> {
+            Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
+            if (intentOpt.isEmpty()) {
+                throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
+            }
+            
+            PaymentIntent intent = intentOpt.get();
+            if (intent.getStatus() == IntentStatus.SUCCESS) {
+                logger.info("PaymentIntent {} is already marked as SUCCESS.", intent.getId());
+                return;
+            }
+
+            intent.setStatus(IntentStatus.SUCCESS);
+                    
+            PaymentSucceededEvent event = new PaymentSucceededEvent(
+                    intent.getOrderId(),
+                    intent.getGatewayOrderId(),
+                    intent.getAmount(),
+                    intent.getGatewayName()
+            );
+
             paymentIntentRepository.save(intent);
             try {
                 com.fooddelivery.payments.entity.OutboxEventEntity outbox = com.fooddelivery.payments.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
-                        .aggregateType("PAYMENT")
+                        .aggregateType(com.fooddelivery.common.constants.AppConstants.AGGREGATE_PAYMENT)
                         .aggregateId(intent.getOrderId())
-                        .eventType("PaymentCompletedEvent")
+                        .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED)
                         .payload(objectMapper.writeValueAsString(event))
                         .createdAt(java.time.LocalDateTime.now())
-                        .status("UNPROCESSED")
+                        .status(com.fooddelivery.common.constants.AppConstants.OUTBOX_STATUS_UNPROCESSED)
                         .build();
                 outboxEventRepository.save(outbox);
             } catch (Exception e) {
@@ -201,37 +207,37 @@ public class WebhookProcessingService {
     }
 
     public void handleFailedPayment(String gatewayOrderId, String failureReason) {
-        Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
-        if (intentOpt.isEmpty()) {
-            throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
-        }
-        
-        PaymentIntent intent = intentOpt.get();
-        if (intent.getStatus() == IntentStatus.FAILED || intent.getStatus() == IntentStatus.SUCCESS) {
-            logger.info("PaymentIntent {} is already in terminal state {}.", intent.getId(), intent.getStatus());
-            return;
-        }
-
-        intent.setStatus(IntentStatus.FAILED);
-                
-        com.fooddelivery.common.event.PaymentFailedEvent event = new com.fooddelivery.common.event.PaymentFailedEvent(
-                java.util.UUID.fromString(intent.getOrderId()),
-                intent.getGatewayOrderId(),
-                intent.getGatewayName(),
-                failureReason
-        );
-
         transactionTemplate.executeWithoutResult(status -> {
+            Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
+            if (intentOpt.isEmpty()) {
+                throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
+            }
+            
+            PaymentIntent intent = intentOpt.get();
+            if (intent.getStatus() == IntentStatus.FAILED || intent.getStatus() == IntentStatus.SUCCESS) {
+                logger.info("PaymentIntent {} is already in terminal state {}.", intent.getId(), intent.getStatus());
+                return;
+            }
+
+            intent.setStatus(IntentStatus.FAILED);
+                    
+            com.fooddelivery.common.event.PaymentFailedEvent event = new com.fooddelivery.common.event.PaymentFailedEvent(
+                    java.util.UUID.fromString(intent.getOrderId()),
+                    intent.getGatewayOrderId(),
+                    intent.getGatewayName(),
+                    failureReason
+            );
+
             paymentIntentRepository.save(intent);
             try {
                 com.fooddelivery.payments.entity.OutboxEventEntity outbox = com.fooddelivery.payments.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
-                        .aggregateType("PAYMENT")
+                        .aggregateType(com.fooddelivery.common.constants.AppConstants.AGGREGATE_PAYMENT)
                         .aggregateId(intent.getOrderId())
-                        .eventType("PaymentFailedEvent")
+                        .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_FAILED)
                         .payload(objectMapper.writeValueAsString(event))
                         .createdAt(java.time.LocalDateTime.now())
-                        .status("UNPROCESSED")
+                        .status(com.fooddelivery.common.constants.AppConstants.OUTBOX_STATUS_UNPROCESSED)
                         .build();
                 outboxEventRepository.save(outbox);
             } catch (Exception e) {
@@ -241,34 +247,34 @@ public class WebhookProcessingService {
     }
 
     public void handleRefundSuccess(String gatewayOrderId, JsonNode rootNode) {
-        Optional<PaymentIntent> intentOpt = paymentIntentRepository.findByGatewayOrderId(gatewayOrderId);
-        if (intentOpt.isEmpty()) {
-            throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
-        }
-        
-        PaymentIntent intent = intentOpt.get();
-        
-        BigDecimal tempRefund = new BigDecimal(rootNode.path("amount_refunded").asText("0"));
-        if (tempRefund.compareTo(BigDecimal.ZERO) == 0 && rootNode.has("amount")) {
-             tempRefund = new BigDecimal(rootNode.path("amount").asText("0"));
-        }
-        final BigDecimal finalRefundAmount = tempRefund;
-        
-        BigDecimal currentRefund = intent.getAmountRefunded() != null ? intent.getAmountRefunded() : BigDecimal.ZERO;
-        intent.setAmountRefunded(currentRefund.add(finalRefundAmount));
-        
-        if (intent.getAmountRefunded().compareTo(intent.getAmount()) >= 0) {
-            intent.setStatus(IntentStatus.REFUNDED);
-                    } else {
-            intent.setStatus(IntentStatus.PARTIALLY_REFUNDED);
-                    }
-
-        // Also track on the transaction if one exists
-        Optional<com.fooddelivery.payments.model.Transaction> txOpt = transactionRepository.findFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(intent.getId(), "SUCCESS");
-
         transactionTemplate.executeWithoutResult(status -> {
+            Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
+            if (intentOpt.isEmpty()) {
+                throw new RuntimeException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
+            }
+            
+            PaymentIntent intent = intentOpt.get();
+            
+            BigDecimal tempRefund = new BigDecimal(rootNode.path("amount_refunded").asText("0"));
+            if (tempRefund.compareTo(BigDecimal.ZERO) == 0 && rootNode.has("amount")) {
+                 tempRefund = new BigDecimal(rootNode.path("amount").asText("0"));
+            }
+            final BigDecimal finalRefundAmount = tempRefund;
+            
+            BigDecimal currentRefund = intent.getAmountRefunded() != null ? intent.getAmountRefunded() : BigDecimal.ZERO;
+            intent.setAmountRefunded(currentRefund.add(finalRefundAmount));
+            
+            if (intent.getAmountRefunded().compareTo(intent.getAmount()) >= 0) {
+                intent.setStatus(IntentStatus.REFUNDED);
+            } else {
+                intent.setStatus(IntentStatus.PARTIALLY_REFUNDED);
+            }
+
+            // Also track on the transaction if one exists
+            Optional<com.fooddelivery.payments.model.Transaction> txOpt = transactionRepository.findFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(intent.getId(), com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS);
+
             paymentIntentRepository.save(intent);
-                        if (txOpt.isPresent()) {
+            if (txOpt.isPresent()) {
                 com.fooddelivery.payments.model.Transaction tx = txOpt.get();
                 BigDecimal txCurrentRefund = tx.getAmountRefunded() != null ? tx.getAmountRefunded() : BigDecimal.ZERO;
                 tx.setAmountRefunded(txCurrentRefund.add(finalRefundAmount));

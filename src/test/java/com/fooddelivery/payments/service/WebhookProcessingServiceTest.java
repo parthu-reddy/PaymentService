@@ -78,7 +78,7 @@ public class WebhookProcessingServiceTest {
         intent.setOrderId(UUID.randomUUID().toString());
         intent.setAmount(new BigDecimal("100.00"));
 
-        when(paymentIntentRepository.findByGatewayOrderId("ord_123")).thenReturn(Optional.of(intent));
+        when(paymentIntentRepository.findLockedByGatewayOrderId("ord_123")).thenReturn(Optional.of(intent));
 
         String rawBody = "{\"event\":\"payment.success\",\"customer_mobile\":\"+919876543210\",\"payload\":{\"payment\":{\"entity\":{\"order_id\":\"ord_123\"}}}}";
         service.processWebhookAsync("evt_123", "VYAPAR", rawBody);

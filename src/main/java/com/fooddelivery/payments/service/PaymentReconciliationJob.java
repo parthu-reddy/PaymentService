@@ -46,13 +46,13 @@ public class PaymentReconciliationJob {
                 String status = orchestrator.getStrategy(intent.getGatewayName())
                         .verifyStatus(intent.getGatewayOrderId());
 
-                if ("SUCCESS".equalsIgnoreCase(status) || 
-                    "CAPTURED".equalsIgnoreCase(status) || 
-                    "PAID".equalsIgnoreCase(status)) {
+                if (com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS.equalsIgnoreCase(status) || 
+                    com.fooddelivery.common.constants.PaymentIntentStatus.CAPTURED.equalsIgnoreCase(status) || 
+                    com.fooddelivery.common.constants.PaymentIntentStatus.PAID.equalsIgnoreCase(status)) {
                     
                     logger.info("Payment intent {} was actually successful on gateway. Triggering fulfillment.", intent.getId());
                     webhookProcessingService.handleSuccessfulPayment(intent.getGatewayOrderId());
-                } else if ("FAILED".equalsIgnoreCase(status)) {
+                } else if (com.fooddelivery.common.constants.PaymentIntentStatus.FAILED.equalsIgnoreCase(status)) {
                     webhookProcessingService.handleFailedPayment(intent.getGatewayOrderId(), "Reconciliation determined payment failed");
                     logger.info("Reconciled payment intent to FAILED: {}", intent.getId());
                 }

@@ -52,7 +52,7 @@ public class PaymentReconciliationJobTest {
                 .thenReturn(List.of(intent));
         
         when(orchestrator.getStrategy("VYAPAR")).thenReturn(mockStrategy);
-        when(mockStrategy.verifyStatus("ord_123")).thenReturn("SUCCESS");
+        when(mockStrategy.verifyStatus("ord_123")).thenReturn(com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS);
 
         job.reconcileStuckPayments();
 

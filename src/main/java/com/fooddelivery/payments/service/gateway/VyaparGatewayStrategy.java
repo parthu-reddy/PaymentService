@@ -157,6 +157,6 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
     @CircuitBreaker(name = "gatewayCB")
     public String verifyStatus(String gatewayOrderId) {
         logger.info("Calling Vyapar API to verify status for order: {}", gatewayOrderId);
-        return "SUCCESS"; // Mocking success for tests
+        return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS; // Mocking success for tests
     }
 }
