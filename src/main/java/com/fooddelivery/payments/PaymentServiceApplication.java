@@ -7,7 +7,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.context.annotation.ComponentScan;
 
-@SpringBootApplication
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+
+@SpringBootApplication(scanBasePackages = {"com.fooddelivery.payments", "com.fooddelivery.common"})
 @EnableAsync
 @EnableScheduling
 @EnableRetry

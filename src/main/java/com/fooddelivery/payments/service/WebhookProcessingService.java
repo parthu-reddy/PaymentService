@@ -38,7 +38,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
     private final IPaymentIntentRepository paymentIntentRepository;
     private final ITransactionRepository transactionRepository;
     private final ObjectMapper objectMapper;
-    private final com.fooddelivery.payments.repository.IOutboxEventRepository outboxEventRepository;
+    private final com.fooddelivery.common.outbox.repository.OutboxEventRepository outboxEventRepository;
     private final TransactionTemplate transactionTemplate;
 
     private final Map<String, WebhookHandlerStrategy> strategyMap;
@@ -48,7 +48,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
             IPaymentIntentRepository paymentIntentRepository,
             ITransactionRepository transactionRepository,
             ObjectMapper objectMapper,
-            com.fooddelivery.payments.repository.IOutboxEventRepository outboxEventRepository,
+            com.fooddelivery.common.outbox.repository.OutboxEventRepository outboxEventRepository,
             TransactionTemplate transactionTemplate,
             List<WebhookHandlerStrategy> strategies) {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
@@ -175,7 +175,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
 
             paymentIntentRepository.save(intent);
             try {
-                com.fooddelivery.payments.entity.OutboxEventEntity outbox = com.fooddelivery.payments.entity.OutboxEventEntity.builder()
+                com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
                         .aggregateType(com.fooddelivery.common.constants.AppConstants.AGGREGATE_PAYMENT)
                         .aggregateId(intent.getOrderId())
@@ -216,7 +216,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
 
             paymentIntentRepository.save(intent);
             try {
-                com.fooddelivery.payments.entity.OutboxEventEntity outbox = com.fooddelivery.payments.entity.OutboxEventEntity.builder()
+                com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
                         .aggregateType(com.fooddelivery.common.constants.AppConstants.AGGREGATE_PAYMENT)
                         .aggregateId(intent.getOrderId())
@@ -276,7 +276,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
                         .gatewayName(intent.getGatewayName())
                         .build();
 
-                com.fooddelivery.payments.entity.OutboxEventEntity outbox = com.fooddelivery.payments.entity.OutboxEventEntity.builder()
+                com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
                         .aggregateType(com.fooddelivery.common.constants.AppConstants.AGGREGATE_PAYMENT)
                         .aggregateId(intent.getOrderId().toString())

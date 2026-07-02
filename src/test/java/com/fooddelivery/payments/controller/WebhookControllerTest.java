@@ -24,7 +24,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(WebhookController.class)
+@WebMvcTest(
+    controllers = WebhookController.class,
+    excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(
+        type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE,
+        classes = com.fooddelivery.payments.config.JpaConfig.class
+    )
+)
 public class WebhookControllerTest {
 
     @Autowired
@@ -36,7 +42,7 @@ public class WebhookControllerTest {
     @MockBean
     private PaymentGatewayOrchestrator orchestrator;
 
-    @MockBean
+    @MockBean(name = "vyaparGatewayStrategy")
     private IPaymentGatewayStrategy vyaparStrategy;
 
     @MockBean

@@ -10,7 +10,7 @@ import com.fooddelivery.payments.repository.ITransactionRepository;
 import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import com.fooddelivery.payments.repository.IOutboxEventRepository;
+import com.fooddelivery.common.outbox.repository.OutboxEventRepository;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -41,7 +41,7 @@ public class WebhookProcessingServiceTest {
     @Mock
     private ObjectMapper objectMapper;
     @Mock
-    private IOutboxEventRepository outboxEventRepository;
+    private OutboxEventRepository outboxEventRepository;
 
     @Mock
     private TransactionTemplate transactionTemplate;

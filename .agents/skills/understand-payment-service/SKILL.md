@@ -5,7 +5,7 @@ description: Comprehensive architectural overview and troubleshooting guide for 
 
 # Payment Service Architecture and Internals
 
-This service integrates Razorpay and Cashfree into a food delivery platform. 
+This service integrates Razorpay, Cashfree, and Vyapar (UPI) into a food delivery platform. 
 It uses Java 17, Spring Boot 3, PostgreSQL, Redis, and Flyway.
 
 ## Directory Structure
