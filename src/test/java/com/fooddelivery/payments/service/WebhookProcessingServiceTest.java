@@ -46,7 +46,6 @@ public class WebhookProcessingServiceTest {
     @Mock
     private TransactionTemplate transactionTemplate;
 
-    @InjectMocks
     private WebhookProcessingService service;
 
     @Captor
@@ -55,13 +54,23 @@ public class WebhookProcessingServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
+        com.fooddelivery.payments.service.strategy.WebhookHandlerStrategy vyaparStub = new com.fooddelivery.payments.service.strategy.WebhookHandlerStrategy() {
+            @Override
+            public String getSupportedGateway() { return "VYAPAR"; }
+            @Override
+            public void handleEvent(String eventType, com.fasterxml.jackson.databind.JsonNode rootNode, com.fooddelivery.payments.service.strategy.PaymentActionDelegate delegate) {
+                delegate.handleSuccessfulPayment("ord_123");
+            }
+        };
+
         service = new WebhookProcessingService(
                 webhookDeliveryRepository,
                 paymentIntentRepository,
                 transactionRepository,
                 objectMapper,
                 outboxEventRepository,
-                transactionTemplate);
+                transactionTemplate,
+                java.util.Collections.singletonList(vyaparStub));
 
         lenient().doAnswer(invocation -> {
             java.util.function.Consumer<TransactionStatus> action = invocation.getArgument(0);
@@ -79,6 +88,9 @@ public class WebhookProcessingServiceTest {
         intent.setAmount(new BigDecimal("100.00"));
 
         when(paymentIntentRepository.findLockedByGatewayOrderId("ord_123")).thenReturn(Optional.of(intent));
+
+        when(webhookDeliveryRepository.saveAndFlush(any(WebhookDelivery.class))).thenAnswer(i -> i.getArgument(0));
+        when(webhookDeliveryRepository.save(any(WebhookDelivery.class))).thenAnswer(i -> i.getArgument(0));
 
         String rawBody = "{\"event\":\"payment.success\",\"customer_mobile\":\"+919876543210\",\"payload\":{\"payment\":{\"entity\":{\"order_id\":\"ord_123\"}}}}";
         service.processWebhookAsync("evt_123", "VYAPAR", rawBody);

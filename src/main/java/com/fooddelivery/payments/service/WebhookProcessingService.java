@@ -22,8 +22,15 @@ import java.util.Optional;
 import com.fooddelivery.payments.model.enums.IntentStatus;
 import com.fooddelivery.payments.model.enums.DeliveryStatus;
 
+import com.fooddelivery.payments.service.strategy.PaymentActionDelegate;
+import com.fooddelivery.payments.service.strategy.WebhookHandlerStrategy;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 @Service
-public class WebhookProcessingService {
+public class WebhookProcessingService implements PaymentActionDelegate {
 
     private static final Logger logger = LoggerFactory.getLogger(WebhookProcessingService.class);
     
@@ -34,19 +41,24 @@ public class WebhookProcessingService {
     private final com.fooddelivery.payments.repository.IOutboxEventRepository outboxEventRepository;
     private final TransactionTemplate transactionTemplate;
 
+    private final Map<String, WebhookHandlerStrategy> strategyMap;
+
     public WebhookProcessingService(
             IWebhookDeliveryRepository webhookDeliveryRepository,
             IPaymentIntentRepository paymentIntentRepository,
             ITransactionRepository transactionRepository,
             ObjectMapper objectMapper,
             com.fooddelivery.payments.repository.IOutboxEventRepository outboxEventRepository,
-            TransactionTemplate transactionTemplate) {
+            TransactionTemplate transactionTemplate,
+            List<WebhookHandlerStrategy> strategies) {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.transactionRepository = transactionRepository;
         this.objectMapper = objectMapper;
         this.outboxEventRepository = outboxEventRepository;
         this.transactionTemplate = transactionTemplate;
+        this.strategyMap = strategies.stream()
+            .collect(Collectors.toMap(s -> s.getSupportedGateway().toUpperCase(), Function.identity()));
     }
 
     @Transactional(readOnly = true)
@@ -61,12 +73,23 @@ public class WebhookProcessingService {
       backoff = @Backoff(delay = 1000, multiplier = 2)
     )
     public void processWebhookAsync(String eventId, String gatewayName, String rawBody) {
-        WebhookDelivery delivery = webhookDeliveryRepository.findByEventId(eventId).orElseGet(() -> {
-            WebhookDelivery newDel = new WebhookDelivery();
-            newDel.setEventId(eventId);
-            return newDel;
-        });
-        delivery.setGatewayName(gatewayName);
+        if (isEventProcessed(eventId)) {
+            return;
+        }
+        
+        WebhookDelivery delivery;
+        try {
+            delivery = new WebhookDelivery();
+            delivery.setEventId(eventId);
+            delivery.setGatewayName(gatewayName);
+            delivery.setProcessingStatus(DeliveryStatus.PENDING);
+            delivery.setEventType("UNKNOWN");
+            delivery.setPayload("{}"); // temporary payload to satisfy not-null constraint
+            delivery = webhookDeliveryRepository.saveAndFlush(delivery);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            logger.info("Duplicate webhook eventId {}. Another thread is processing it.", eventId);
+            return;
+        }
         
         String eventType = "UNKNOWN";
         try {
@@ -118,54 +141,16 @@ public class WebhookProcessingService {
     }
 
     private void processGatewayEvent(String gatewayName, String eventType, JsonNode rootNode) {
-        if ("VYAPAR".equalsIgnoreCase(gatewayName)) {
-            handleVyaparEvent(eventType, rootNode);
-        } else if ("RAZORPAY".equalsIgnoreCase(gatewayName)) {
-            handleRazorpayEvent(eventType, rootNode);
-        } else if ("CASHFREE".equalsIgnoreCase(gatewayName)) {
-            handleCashfreeEvent(eventType, rootNode);
+        String normalizedGatewayName = gatewayName.toUpperCase();
+        WebhookHandlerStrategy strategy = strategyMap.get(normalizedGatewayName);
+        if (strategy != null) {
+            strategy.handleEvent(eventType, rootNode, this);
         } else {
             logger.warn("Received webhook for unknown gateway: {}", gatewayName);
         }
     }
 
-    private void handleVyaparEvent(String eventType, JsonNode rootNode) {
-        String gatewayOrderId = rootNode.path("payload").path("payment").path("entity").path("order_id").asText();
-        if (gatewayOrderId == null || gatewayOrderId.isEmpty()) {
-            gatewayOrderId = rootNode.path("order_id").asText();
-        }
-        
-        if ("payment.success".equals(eventType)) {
-            handleSuccessfulPayment(gatewayOrderId);
-        } else if ("payment.failed".equals(eventType)) {
-            handleFailedPayment(gatewayOrderId, "Vyapar payment failed");
-        } else if ("refund.success".equals(eventType)) {
-            handleRefundSuccess(gatewayOrderId, rootNode);
-        }
-    }
-
-    private void handleRazorpayEvent(String eventType, JsonNode rootNode) {
-        String gatewayOrderId = rootNode.path("payload").path("payment").path("entity").path("order_id").asText();
-        if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
-            if ("order.paid".equals(eventType)) {
-                handleSuccessfulPayment(gatewayOrderId);
-            } else if ("payment.failed".equals(eventType)) {
-                handleFailedPayment(gatewayOrderId, "Razorpay payment failed");
-            }
-        }
-    }
-
-    private void handleCashfreeEvent(String eventType, JsonNode rootNode) {
-        String gatewayOrderId = rootNode.path("data").path("order").path("order_id").asText();
-        if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
-            if ("PAYMENT_SUCCESS_WEBHOOK".equals(eventType)) {
-                handleSuccessfulPayment(gatewayOrderId);
-            } else if ("PAYMENT_FAILED_WEBHOOK".equals(eventType)) {
-                handleFailedPayment(gatewayOrderId, "Cashfree payment failed");
-            }
-        }
-    }
-
+    @Override
     public void handleSuccessfulPayment(String gatewayOrderId) {
         transactionTemplate.executeWithoutResult(status -> {
             Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
@@ -206,6 +191,7 @@ public class WebhookProcessingService {
         });
     }
 
+    @Override
     public void handleFailedPayment(String gatewayOrderId, String failureReason) {
         transactionTemplate.executeWithoutResult(status -> {
             Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
@@ -246,6 +232,7 @@ public class WebhookProcessingService {
         });
     }
 
+    @Override
     public void handleRefundSuccess(String gatewayOrderId, JsonNode rootNode) {
         transactionTemplate.executeWithoutResult(status -> {
             Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
@@ -279,6 +266,29 @@ public class WebhookProcessingService {
                 BigDecimal txCurrentRefund = tx.getAmountRefunded() != null ? tx.getAmountRefunded() : BigDecimal.ZERO;
                 tx.setAmountRefunded(txCurrentRefund.add(finalRefundAmount));
                 transactionRepository.save(tx);
+            }
+            
+            try {
+                com.fooddelivery.common.event.PaymentRefundedEvent refundEvent = com.fooddelivery.common.event.PaymentRefundedEvent.builder()
+                        .orderId(intent.getOrderId().toString())
+                        .gatewayOrderId(intent.getGatewayOrderId())
+                        .amountRefunded(finalRefundAmount)
+                        .gatewayName(intent.getGatewayName())
+                        .build();
+
+                com.fooddelivery.payments.entity.OutboxEventEntity outbox = com.fooddelivery.payments.entity.OutboxEventEntity.builder()
+                        .id(java.util.UUID.randomUUID())
+                        .aggregateType(com.fooddelivery.common.constants.AppConstants.AGGREGATE_PAYMENT)
+                        .aggregateId(intent.getOrderId().toString())
+                        .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED)
+                        .payload(objectMapper.writeValueAsString(refundEvent))
+                        .createdAt(java.time.LocalDateTime.now())
+                        .status(com.fooddelivery.common.constants.AppConstants.OUTBOX_STATUS_UNPROCESSED)
+                        .build();
+                outboxEventRepository.save(outbox);
+            } catch (Exception e) {
+                logger.error("Failed to serialize or save PaymentRefundedEvent for gatewayOrderId: " + gatewayOrderId, e);
+                throw new RuntimeException("Failed to save PaymentRefundedEvent to Outbox", e);
             }
         });
     }
