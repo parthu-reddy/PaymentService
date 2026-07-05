@@ -23,6 +23,14 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>2023.0.2</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
         <dependency> 
             <groupId>com.fooddelivery</groupId> 
             <artifactId>common-library</artifactId> 
@@ -42,7 +50,12 @@
             <scope>test</scope>
         </dependency>
 
-        </dependencies>
+        
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-config</artifactId>
+        </dependency>
+    </dependencies>
     </dependencyManagement>
 
     <dependencies>
