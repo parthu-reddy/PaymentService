@@ -13,9 +13,12 @@ import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/v1/payments")
 @CrossOrigin(origins = "${cors.allowed-origins:*}") // Allows cross-origin requests from configured domains
+@PreAuthorize("isAuthenticated()")
 public class PaymentController {
 
     private final PaymentGatewayOrchestrator orchestrator;
