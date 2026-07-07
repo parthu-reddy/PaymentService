@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -15,7 +16,9 @@ import javax.crypto.spec.SecretKeySpec;
 public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(MockVyaparGatewayStrategy.class);
-    private final String webhookSecret = "test_vyapar_webhook_secret";
+    
+    @Value("${vyapargateway.webhook.secret:test_vyapar_webhook_secret}")
+    private String webhookSecret;
 
     @Override
     public String getGatewayName() {

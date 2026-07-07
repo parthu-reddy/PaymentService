@@ -10,7 +10,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class RazorpayStrategy implements IPaymentGatewayStrategy {
 
     private final RazorpayClient razorpayClient;
@@ -66,7 +69,7 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
     @Override
     public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
         // Mock refund for Razorpay
-        System.out.println("Razorpay Refund Initiated for Order: " + gatewayOrderId + " Amount: " + amount + " Reason: " + reason);
+        log.info("Razorpay Refund Initiated for Order: {} Amount: {} Reason: {}", gatewayOrderId, amount, reason);
         return true;
     }
 
