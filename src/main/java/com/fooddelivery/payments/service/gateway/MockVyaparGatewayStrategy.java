@@ -20,6 +20,10 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
     @Value("${vyapargateway.webhook.secret:test_vyapar_webhook_secret}")
     private String webhookSecret;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.fooddelivery.payments.service.WebhookProcessingService webhookService;
+
     @Override
     public String getGatewayName() {
         return "VYAPAR";
@@ -27,8 +31,19 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     public String createOrder(PaymentRequestContext context) {
+        String gatewayOrderId = "mock_vyapar_txn_" + context.getInternalOrderId();
         logger.info("[DEBUG PROFILE] Mocking Vyapar Gateway create order for internal order: {}", context.getInternalOrderId());
-        return "mock_vyapar_txn_" + context.getInternalOrderId();
+        
+        new Thread(() -> {
+            try {
+                Thread.sleep(2000); // Wait 2s to simulate network delay and allow intent to be saved
+                webhookService.handleSuccessfulPayment(gatewayOrderId);
+            } catch (Exception e) {
+                logger.error("Error auto-triggering payment success", e);
+            }
+        }).start();
+
+        return gatewayOrderId;
     }
 
     @Override
