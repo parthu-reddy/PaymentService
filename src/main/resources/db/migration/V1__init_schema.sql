@@ -1,4 +1,3 @@
--- Source: V1__init_schema.sql
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE payment_intents (  
@@ -10,8 +9,13 @@ CREATE TABLE payment_intents (
     status VARCHAR(50) NOT NULL DEFAULT 'INITIATED',   
     idempotency_key VARCHAR(255) UNIQUE NOT NULL,  
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,  
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    amount_refunded DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    version INTEGER DEFAULT 0,
+    CONSTRAINT chk_refund_limits CHECK (amount_refunded <= amount)
 );
+
+CREATE INDEX IF NOT EXISTS idx_payment_intents_status_created_at ON payment_intents(status, created_at);
 
 CREATE TABLE transactions (  
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  
@@ -25,7 +29,11 @@ CREATE TABLE transactions (
     error_message TEXT,  
     captured_at TIMESTAMP WITH TIME ZONE,  
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    amount_refunded DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    version INTEGER DEFAULT 0,
+    CONSTRAINT chk_txn_refund_limits CHECK (amount_refunded <= amount),
+    CONSTRAINT chk_transactions_amount CHECK (amount >= 0)
 );
 
 CREATE TABLE refunds (  
@@ -36,7 +44,9 @@ CREATE TABLE refunds (
     reason VARCHAR(255) NOT NULL,  
     status VARCHAR(50) NOT NULL DEFAULT 'PENDING',  
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    version INTEGER DEFAULT 0,
+    CONSTRAINT chk_refund_positive CHECK (amount > 0)
 );
 
 CREATE TABLE webhook_deliveries (  
@@ -48,27 +58,11 @@ CREATE TABLE webhook_deliveries (
     processing_status VARCHAR(50) NOT NULL DEFAULT 'PENDING',   
     error_log TEXT,  
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    version INTEGER DEFAULT 0
 );
-
-
--- Source: V2__add_refund_tracking.sql
-ALTER TABLE payment_intents ADD COLUMN amount_refunded DECIMAL(15,2) NOT NULL DEFAULT 0.00;
-ALTER TABLE payment_intents ADD CONSTRAINT chk_refund_limits CHECK (amount_refunded <= amount);
-
-
--- Source: V3__add_performance_indices.sql
--- Add performance indices for background reconciliation and DLQ jobs
-CREATE INDEX IF NOT EXISTS idx_payment_intents_status_created_at ON payment_intents(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status_created_at ON webhook_deliveries(processing_status, created_at);
 
-
--- Source: V4__add_transaction_refund_tracking.sql
-ALTER TABLE transactions ADD COLUMN amount_refunded DECIMAL(15,2) NOT NULL DEFAULT 0.00;
-ALTER TABLE transactions ADD CONSTRAINT chk_txn_refund_limits CHECK (amount_refunded <= amount);
-
-
--- Source: V5__add_outbox_events.sql
 CREATE TABLE outbox_events (
     id UUID PRIMARY KEY,
     aggregate_type VARCHAR(100) NOT NULL,
@@ -78,19 +72,7 @@ CREATE TABLE outbox_events (
     status VARCHAR(20) DEFAULT 'UNPROCESSED',
     processed_at TIMESTAMP,
     error_message TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    retry_count INT DEFAULT 0
 );
 CREATE INDEX idx_outbox_status_polling ON outbox_events(status, created_at) WHERE status IN ('UNPROCESSED', 'FAILED');
-
-
--- Source: V6__add_version_column.sql
-ALTER TABLE payment_intents ADD COLUMN version INTEGER DEFAULT 0;
-ALTER TABLE transactions ADD COLUMN version INTEGER DEFAULT 0;
-ALTER TABLE refunds ADD COLUMN version INTEGER DEFAULT 0;
-ALTER TABLE webhook_deliveries ADD COLUMN version INTEGER DEFAULT 0;
-
-
--- Source: V10__add_retry_count_to_outbox.sql
-ALTER TABLE outbox_events ADD COLUMN IF NOT EXISTS retry_count INT DEFAULT 0;
-
-
