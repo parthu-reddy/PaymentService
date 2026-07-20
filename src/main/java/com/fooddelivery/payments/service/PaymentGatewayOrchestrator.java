@@ -9,32 +9,34 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.fooddelivery.common.enums.PaymentGateway;
+
 @Service
 public class PaymentGatewayOrchestrator {
 
-    private final Map<String, IPaymentGatewayStrategy> strategies;
+    private final Map<PaymentGateway, IPaymentGatewayStrategy> strategies;
 
     public PaymentGatewayOrchestrator(List<IPaymentGatewayStrategy> strategyList) {
         this.strategies = strategyList.stream()
                 .collect(Collectors.toMap(IPaymentGatewayStrategy::getGatewayName, Function.identity()));
     }
 
-    public IPaymentGatewayStrategy getStrategy(String gatewayName) {
+    public IPaymentGatewayStrategy getStrategy(PaymentGateway gatewayName) {
         if (gatewayName == null) {
             throw new IllegalArgumentException("Gateway name cannot be null");
         }
-        IPaymentGatewayStrategy strategy = strategies.get(gatewayName.toUpperCase());
+        IPaymentGatewayStrategy strategy = strategies.get(gatewayName);
         if (strategy == null) {
             throw new IllegalArgumentException("Unsupported gateway: " + gatewayName);
         }
         return strategy;
     }
 
-    public String createOrder(String gatewayName, PaymentRequestContext context) {
+    public String createOrder(PaymentGateway gatewayName, PaymentRequestContext context) {
         return getStrategy(gatewayName).createOrder(context);
     }
 
-    public boolean initiateRefund(String gatewayName, String gatewayOrderId, double amount, String reason) {
+    public boolean initiateRefund(PaymentGateway gatewayName, String gatewayOrderId, double amount, String reason) {
         return getStrategy(gatewayName).initiateRefund(gatewayOrderId, amount, reason);
     }
 }

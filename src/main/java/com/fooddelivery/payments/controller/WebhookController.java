@@ -3,7 +3,7 @@ package com.fooddelivery.payments.controller;
 import com.fooddelivery.payments.service.PaymentGatewayOrchestrator;
 import com.fooddelivery.payments.service.WebhookProcessingService;
 import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
-import com.fooddelivery.payments.model.enums.PaymentGateway;
+import com.fooddelivery.common.enums.PaymentGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -34,7 +34,7 @@ public class WebhookController {
             @RequestHeader(value = "x-razorpay-signature", required = false) String signature,
             @RequestHeader(value = "x-razorpay-event-id", required = false) String eventId) {
 
-        return processWebhook(request, PaymentGateway.RAZORPAY.name(), signature, null, eventId);
+        return processWebhook(request, PaymentGateway.RAZORPAY, signature, null, eventId);
     }
 
     @PostMapping("/cashfree")
@@ -44,7 +44,7 @@ public class WebhookController {
             @RequestHeader(value = "x-webhook-timestamp", required = false) String timestamp,
             @RequestHeader(value = "x-webhook-event-id", required = false) String eventId) {
 
-        return processWebhook(request, PaymentGateway.CASHFREE.name(), signature, timestamp, eventId);
+        return processWebhook(request, PaymentGateway.CASHFREE, signature, timestamp, eventId);
     }
 
     @PostMapping("/vyapar")
@@ -53,10 +53,10 @@ public class WebhookController {
             @RequestHeader(value = "X-VyaparGateway-Signature", required = false) String signature,
             @RequestHeader(value = "X-VyaparGateway-Event-Id", required = false) String eventId) {
 
-        return processWebhook(request, PaymentGateway.VYAPAR.name(), signature, null, eventId);
+        return processWebhook(request, PaymentGateway.VYAPAR, signature, null, eventId);
     }
 
-    private ResponseEntity<String> processWebhook(HttpServletRequest request, String gateway, String signature, String timestamp, String headerEventId) {
+    private ResponseEntity<String> processWebhook(HttpServletRequest request, PaymentGateway gateway, String signature, String timestamp, String headerEventId) {
         try {
             if (signature == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing Signature");

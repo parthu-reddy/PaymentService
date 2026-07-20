@@ -1,5 +1,6 @@
 package com.fooddelivery.payments.service.gateway;
 
+import com.fooddelivery.common.enums.PaymentGateway;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
@@ -29,8 +30,8 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
-    public String getGatewayName() {
-        return "RAZORPAY";
+    public PaymentGateway getGatewayName() {
+        return PaymentGateway.RAZORPAY;
     }
 
     @Override
@@ -74,7 +75,7 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
-    public String verifyStatus(String gatewayOrderId) {
+    public com.fooddelivery.common.constants.PaymentIntentStatus verifyStatus(String gatewayOrderId) {
         // Razorpay API call to get order status
         return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
     }

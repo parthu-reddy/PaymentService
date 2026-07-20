@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import com.fooddelivery.common.enums.TransactionStatus;
 
 @Entity
 @Table(name = "transactions")
@@ -28,8 +29,9 @@ public class Transaction extends BaseEntity {
     @Column(name = "payment_network")
     private String paymentNetwork;
 
-    @Column(nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private TransactionStatus status;
 
     @Column(name = "error_code")
     private String errorCode;

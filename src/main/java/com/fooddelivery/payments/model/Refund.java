@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
+import com.fooddelivery.common.enums.RefundStatus;
 
 @Entity
 @Table(name = "refunds")
@@ -24,6 +25,7 @@ public class Refund extends BaseEntity {
     @Column(nullable = false)
     private String reason;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "PENDING";
+    private RefundStatus status = RefundStatus.PENDING;
 }

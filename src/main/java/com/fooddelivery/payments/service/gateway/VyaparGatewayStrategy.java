@@ -1,5 +1,6 @@
 package com.fooddelivery.payments.service.gateway;
 
+import com.fooddelivery.common.enums.PaymentGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,8 +59,8 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
-    public String getGatewayName() {
-        return "VYAPAR";
+    public PaymentGateway getGatewayName() {
+        return PaymentGateway.VYAPAR;
     }
 
     @Override
@@ -155,7 +156,7 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     @CircuitBreaker(name = "gatewayCB")
-    public String verifyStatus(String gatewayOrderId) {
+    public com.fooddelivery.common.constants.PaymentIntentStatus verifyStatus(String gatewayOrderId) {
         logger.info("Calling Vyapar API to verify status for order: {}", gatewayOrderId);
         return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS; // Mocking success for tests
     }

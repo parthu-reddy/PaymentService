@@ -3,6 +3,7 @@ package com.fooddelivery.payments.controller;
 import com.fooddelivery.payments.service.PaymentGatewayOrchestrator;
 import com.fooddelivery.payments.service.WebhookProcessingService;
 import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
+import com.fooddelivery.common.enums.PaymentGateway;
 import com.fooddelivery.common.filter.RequestCachingFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -84,7 +85,7 @@ public class WebhookControllerTest {
         String expectedHash = hexString.toString();
 
         when(webhookProcessingService.isEventProcessed(expectedHash)).thenReturn(false);
-        when(orchestrator.getStrategy("VYAPAR")).thenReturn(vyaparStrategy);
+        when(orchestrator.getStrategy(PaymentGateway.VYAPAR)).thenReturn(vyaparStrategy);
         when(vyaparStrategy.verifyWebhookSignature(eq(payload), eq(signature), isNull())).thenReturn(true);
 
         mockMvc.perform(post("/api/v1/webhooks/vyapar")
@@ -94,6 +95,6 @@ public class WebhookControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Webhook Received and Verified"));
 
-        verify(webhookProcessingService).processWebhookAsync(expectedHash, "VYAPAR", payload);
+        verify(webhookProcessingService).processWebhookAsync(expectedHash, PaymentGateway.VYAPAR, payload);
     }
 }

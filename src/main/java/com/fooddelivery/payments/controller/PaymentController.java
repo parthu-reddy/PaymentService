@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import com.fooddelivery.common.enums.PaymentGateway;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -44,7 +45,7 @@ public class PaymentController {
 
     @PostMapping("/create-order")
     public ResponseEntity<String> createOrder(
-            @RequestParam String gateway,
+            @RequestParam PaymentGateway gateway,
             @Valid @RequestBody CreateOrderRequest request) {
         try {
             PaymentRequestContext context = PaymentRequestContext.builder()
@@ -84,7 +85,7 @@ public class PaymentController {
 
     @PostMapping("/refund")
     public ResponseEntity<String> refundOrder(
-            @RequestParam String gateway,
+            @RequestParam PaymentGateway gateway,
             @Valid @RequestBody RefundRequest request) {
         try {
             boolean success = orchestrator.initiateRefund(

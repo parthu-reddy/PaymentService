@@ -7,8 +7,8 @@ import org.springframework.stereotype.Component;
 public class RazorpayWebhookStrategy implements WebhookHandlerStrategy {
 
     @Override
-    public String getSupportedGateway() {
-        return "RAZORPAY";
+    public com.fooddelivery.common.enums.PaymentGateway getSupportedGateway() {
+        return com.fooddelivery.common.enums.PaymentGateway.RAZORPAY;
     }
 
     @Override

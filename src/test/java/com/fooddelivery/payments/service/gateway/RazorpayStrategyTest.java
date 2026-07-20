@@ -39,7 +39,7 @@ public class RazorpayStrategyTest {
 
     @Test
     void testGetName() {
-        assertEquals("RAZORPAY", strategy.getGatewayName());
+        assertEquals(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY, strategy.getGatewayName());
     }
 
     @Test

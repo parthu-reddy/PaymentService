@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fooddelivery.payments.model.PaymentIntent;
 import com.fooddelivery.payments.model.WebhookDelivery;
 import com.fooddelivery.payments.model.enums.DeliveryStatus;
-import com.fooddelivery.payments.model.enums.IntentStatus;
+import com.fooddelivery.common.constants.PaymentIntentStatus;
 import com.fooddelivery.payments.repository.IPaymentIntentRepository;
 import com.fooddelivery.payments.repository.ITransactionRepository;
 import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
@@ -56,7 +56,7 @@ public class WebhookProcessingServiceTest {
         objectMapper = new ObjectMapper();
         com.fooddelivery.payments.service.strategy.WebhookHandlerStrategy vyaparStub = new com.fooddelivery.payments.service.strategy.WebhookHandlerStrategy() {
             @Override
-            public String getSupportedGateway() { return "VYAPAR"; }
+            public com.fooddelivery.common.enums.PaymentGateway getSupportedGateway() { return com.fooddelivery.common.enums.PaymentGateway.VYAPAR; }
             @Override
             public void handleEvent(String eventType, com.fasterxml.jackson.databind.JsonNode rootNode, com.fooddelivery.payments.service.strategy.PaymentActionDelegate delegate) {
                 delegate.handleSuccessfulPayment("ord_123");
@@ -83,7 +83,7 @@ public class WebhookProcessingServiceTest {
     void testProcessWebhookAsync_masksSensitiveData() {
         PaymentIntent intent = new PaymentIntent();
         intent.setGatewayOrderId("ord_123");
-        intent.setStatus(IntentStatus.INITIATED);
+        intent.setStatus(PaymentIntentStatus.INITIATED);
         intent.setOrderId(UUID.randomUUID().toString());
         intent.setAmount(new BigDecimal("100.00"));
 
@@ -93,10 +93,10 @@ public class WebhookProcessingServiceTest {
         when(webhookDeliveryRepository.save(any(WebhookDelivery.class))).thenAnswer(i -> i.getArgument(0));
 
         String rawBody = "{\"event\":\"payment.success\",\"customer_mobile\":\"+919876543210\",\"payload\":{\"payment\":{\"entity\":{\"order_id\":\"ord_123\"}}}}";
-        service.processWebhookAsync("evt_123", "VYAPAR", rawBody);
+        service.processWebhookAsync("evt_123", com.fooddelivery.common.enums.PaymentGateway.VYAPAR, rawBody);
 
         verify(webhookDeliveryRepository, times(2)).save(deliveryCaptor.capture());
-        assertEquals(IntentStatus.SUCCESS, intent.getStatus());
+        assertEquals(PaymentIntentStatus.SUCCESS, intent.getStatus());
         verify(paymentIntentRepository).save(intent);
     }
 }

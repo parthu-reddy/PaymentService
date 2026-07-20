@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import com.fooddelivery.payments.model.enums.DeliveryStatus;
+import com.fooddelivery.common.enums.PaymentGateway;
 
 @Entity
 @Table(name = "webhook_deliveries")
@@ -11,8 +12,9 @@ import com.fooddelivery.payments.model.enums.DeliveryStatus;
 @Setter
 public class WebhookDelivery extends BaseEntity {
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "gateway_name", nullable = false)
-    private String gatewayName;
+    private PaymentGateway gatewayName;
 
     @Column(name = "event_id", nullable = false, unique = true)
     private String eventId;

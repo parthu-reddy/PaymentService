@@ -1,5 +1,6 @@
 package com.fooddelivery.payments.service.gateway;
 
+import com.fooddelivery.common.enums.PaymentGateway;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,8 +38,8 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
-    public String getGatewayName() {
-        return "CASHFREE";
+    public PaymentGateway getGatewayName() {
+        return PaymentGateway.CASHFREE;
     }
 
     @Override
@@ -95,7 +96,7 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
-    public String verifyStatus(String gatewayOrderId) {
+    public com.fooddelivery.common.constants.PaymentIntentStatus verifyStatus(String gatewayOrderId) {
         return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
     }
 }

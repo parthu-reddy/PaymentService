@@ -32,7 +32,7 @@ public class WebhookDlqJobTest {
     void testProcessFailedWebhooks_TransitionsToDeadLetter() {
         WebhookDelivery delivery = new WebhookDelivery();
         delivery.setEventId("evt_fail");
-        delivery.setGatewayName("VYAPAR");
+        delivery.setGatewayName(com.fooddelivery.common.enums.PaymentGateway.VYAPAR);
         delivery.setPayload("{}");
         delivery.setProcessingStatus(DeliveryStatus.FAILED);
         delivery.setCreatedAt(java.time.ZonedDateTime.now());

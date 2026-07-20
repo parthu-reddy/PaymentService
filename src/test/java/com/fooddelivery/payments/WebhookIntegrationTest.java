@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fooddelivery.payments.model.PaymentIntent;
 import com.fooddelivery.payments.model.WebhookDelivery;
 import com.fooddelivery.payments.model.enums.DeliveryStatus;
-import com.fooddelivery.payments.model.enums.IntentStatus;
+import com.fooddelivery.common.constants.PaymentIntentStatus;
 import com.fooddelivery.payments.repository.IPaymentIntentRepository;
 import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,9 +52,9 @@ public class WebhookIntegrationTest {
     void testEndToEndVyaparWebhookProcessing() throws Exception {
         PaymentIntent intent = new PaymentIntent();
         intent.setGatewayOrderId("vyapar_test_123");
-        intent.setGatewayName("VYAPAR");
+        intent.setGatewayName(com.fooddelivery.common.enums.PaymentGateway.VYAPAR);
         intent.setAmount(new BigDecimal("100.00"));
-        intent.setStatus(IntentStatus.INITIATED);
+        intent.setStatus(PaymentIntentStatus.INITIATED);
         intent.setOrderId(UUID.randomUUID().toString());
         intent.setIdempotencyKey("idemp_123");
         paymentIntentRepository.save(intent);
@@ -100,6 +100,6 @@ public class WebhookIntegrationTest {
         assertTrue(delivery.getPayload().contains("****3210"));
 
         PaymentIntent updatedIntent = paymentIntentRepository.findById(intent.getId()).get();
-        assertEquals(IntentStatus.SUCCESS, updatedIntent.getStatus());
+        assertEquals(PaymentIntentStatus.SUCCESS, updatedIntent.getStatus());
     }
 }

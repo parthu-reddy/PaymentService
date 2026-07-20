@@ -7,8 +7,8 @@ import org.springframework.stereotype.Component;
 public class CashfreeWebhookStrategy implements WebhookHandlerStrategy {
 
     @Override
-    public String getSupportedGateway() {
-        return "CASHFREE";
+    public com.fooddelivery.common.enums.PaymentGateway getSupportedGateway() {
+        return com.fooddelivery.common.enums.PaymentGateway.CASHFREE;
     }
 
     @Override

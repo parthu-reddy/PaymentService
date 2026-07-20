@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import com.fooddelivery.common.enums.PaymentGateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,19 +26,19 @@ class PaymentGatewayOrchestratorTest {
 
     @BeforeEach
     void setUp() {
-        when(mockStrategy.getGatewayName()).thenReturn("MOCK_GATEWAY");
+        when(mockStrategy.getGatewayName()).thenReturn(PaymentGateway.VYAPAR);
         orchestrator = new PaymentGatewayOrchestrator(List.of(mockStrategy));
     }
 
     @Test
     void getStrategy_ShouldReturnCorrectStrategy() {
-        IPaymentGatewayStrategy strategy = orchestrator.getStrategy("MOCK_GATEWAY");
+        IPaymentGatewayStrategy strategy = orchestrator.getStrategy(PaymentGateway.VYAPAR);
         assertThat(strategy).isEqualTo(mockStrategy);
     }
 
     @Test
     void getStrategy_ShouldThrowExceptionForUnsupportedGateway() {
-        assertThatThrownBy(() -> orchestrator.getStrategy("UNSUPPORTED_GATEWAY"))
+        assertThatThrownBy(() -> orchestrator.getStrategy(null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported gateway");
     }
@@ -52,7 +53,7 @@ class PaymentGatewayOrchestratorTest {
                 .build();
         when(mockStrategy.createOrder(context)).thenReturn("ORDER_123");
 
-        String orderId = orchestrator.createOrder("MOCK_GATEWAY", context);
+        String orderId = orchestrator.createOrder(PaymentGateway.VYAPAR, context);
 
         assertThat(orderId).isEqualTo("ORDER_123");
         verify(mockStrategy).createOrder(context);
@@ -63,7 +64,7 @@ class PaymentGatewayOrchestratorTest {
         when(mockStrategy.initiateRefund("GATEWAY_ORDER_123", 100.0, "Customer Request"))
                 .thenReturn(true);
 
-        boolean result = orchestrator.initiateRefund("MOCK_GATEWAY", "GATEWAY_ORDER_123", 100.0, "Customer Request");
+        boolean result = orchestrator.initiateRefund(PaymentGateway.VYAPAR, "GATEWAY_ORDER_123", 100.0, "Customer Request");
 
         assertThat(result).isTrue();
         verify(mockStrategy).initiateRefund("GATEWAY_ORDER_123", 100.0, "Customer Request");

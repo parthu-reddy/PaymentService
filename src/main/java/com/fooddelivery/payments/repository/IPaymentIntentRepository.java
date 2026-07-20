@@ -1,6 +1,7 @@
 package com.fooddelivery.payments.repository;
 
 import com.fooddelivery.payments.model.PaymentIntent;
+import com.fooddelivery.common.constants.PaymentIntentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -19,5 +20,5 @@ public interface IPaymentIntentRepository extends JpaRepository<PaymentIntent, U
     @Query("SELECT p FROM PaymentIntent p WHERE p.gatewayOrderId = :gatewayOrderId")
     Optional<PaymentIntent> findLockedByGatewayOrderId(@Param("gatewayOrderId") String gatewayOrderId);
     Optional<PaymentIntent> findByIdempotencyKey(String idempotencyKey);
-    java.util.List<PaymentIntent> findTop100ByStatusAndCreatedAtBefore(com.fooddelivery.payments.model.enums.IntentStatus status, java.time.ZonedDateTime createdAt);
+    java.util.List<PaymentIntent> findTop100ByStatusAndCreatedAtBefore(PaymentIntentStatus status, java.time.ZonedDateTime createdAt);
 }

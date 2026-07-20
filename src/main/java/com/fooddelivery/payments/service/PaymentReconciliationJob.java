@@ -1,7 +1,7 @@
 package com.fooddelivery.payments.service;
 
 import com.fooddelivery.payments.model.PaymentIntent;
-import com.fooddelivery.payments.model.enums.IntentStatus;
+import com.fooddelivery.common.constants.PaymentIntentStatus;
 import com.fooddelivery.payments.repository.IPaymentIntentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,23 +36,23 @@ public class PaymentReconciliationJob {
 
         // Find intents stuck in INITIATED for more than 10 minutes
         List<PaymentIntent> stuckIntents = paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(
-                IntentStatus.INITIATED, 
+                PaymentIntentStatus.INITIATED, 
                 java.time.ZonedDateTime.now().minusMinutes(10)
         );
 
         for (PaymentIntent intent : stuckIntents) {
             try {
                 logger.info("Reconciling stuck payment intent: {}", intent.getId());
-                String status = orchestrator.getStrategy(intent.getGatewayName())
+                PaymentIntentStatus status = orchestrator.getStrategy(intent.getGatewayName())
                         .verifyStatus(intent.getGatewayOrderId());
 
-                if (com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS.equalsIgnoreCase(status) || 
-                    com.fooddelivery.common.constants.PaymentIntentStatus.CAPTURED.equalsIgnoreCase(status) || 
-                    com.fooddelivery.common.constants.PaymentIntentStatus.PAID.equalsIgnoreCase(status)) {
+                if (status == PaymentIntentStatus.SUCCESS || 
+                    status == PaymentIntentStatus.CAPTURED || 
+                    status == PaymentIntentStatus.PAID) {
                     
                     logger.info("Payment intent {} was actually successful on gateway. Triggering fulfillment.", intent.getId());
                     webhookProcessingService.handleSuccessfulPayment(intent.getGatewayOrderId());
-                } else if (com.fooddelivery.common.constants.PaymentIntentStatus.FAILED.equalsIgnoreCase(status)) {
+                } else if (status == PaymentIntentStatus.FAILED) {
                     webhookProcessingService.handleFailedPayment(intent.getGatewayOrderId(), "Reconciliation determined payment failed");
                     logger.info("Reconciled payment intent to FAILED: {}", intent.getId());
                 }

@@ -39,7 +39,7 @@ public class CashfreeStrategyTest {
 
     @Test
     void testGetName() {
-        assertEquals("CASHFREE", strategy.getGatewayName());
+        assertEquals(com.fooddelivery.common.enums.PaymentGateway.CASHFREE, strategy.getGatewayName());
     }
 
     @Test

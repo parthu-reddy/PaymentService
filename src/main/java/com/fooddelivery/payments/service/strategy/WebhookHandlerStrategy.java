@@ -5,10 +5,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 public interface WebhookHandlerStrategy {
     
     /**
-     * @return The gateway name this strategy supports (e.g., "VYAPAR", "RAZORPAY", "CASHFREE").
+     * @return The gateway name this strategy supports.
      */
-    String getSupportedGateway();
-
+    com.fooddelivery.common.enums.PaymentGateway getSupportedGateway();
     /**
      * Handle the incoming webhook event for the supported gateway.
      * 

@@ -19,9 +19,10 @@ import com.fooddelivery.common.event.PaymentSucceededEvent;
 
 import java.math.BigDecimal;
 import java.util.Optional;
-import com.fooddelivery.payments.model.enums.IntentStatus;
+import com.fooddelivery.common.constants.PaymentIntentStatus;
 import com.fooddelivery.payments.model.enums.DeliveryStatus;
 
+import com.fooddelivery.common.enums.PaymentGateway;
 import com.fooddelivery.payments.service.strategy.PaymentActionDelegate;
 import com.fooddelivery.payments.service.strategy.WebhookHandlerStrategy;
 import java.util.List;
@@ -58,7 +59,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
         this.outboxEventRepository = outboxEventRepository;
         this.transactionTemplate = transactionTemplate;
         this.strategyMap = strategies.stream()
-            .collect(Collectors.toMap(s -> s.getSupportedGateway().toUpperCase(), Function.identity()));
+            .collect(Collectors.toMap(s -> s.getSupportedGateway().name(), Function.identity()));
     }
 
     @Transactional(readOnly = true)
@@ -72,7 +73,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
       maxAttempts = 3,
       backoff = @Backoff(delay = 1000, multiplier = 2)
     )
-    public void processWebhookAsync(String eventId, String gatewayName, String rawBody) {
+    public void processWebhookAsync(String eventId, PaymentGateway gatewayName, String rawBody) {
         if (isEventProcessed(eventId)) {
             return;
         }
@@ -140,8 +141,8 @@ public class WebhookProcessingService implements PaymentActionDelegate {
         }
     }
 
-    private void processGatewayEvent(String gatewayName, String eventType, JsonNode rootNode) {
-        String normalizedGatewayName = gatewayName.toUpperCase();
+    private void processGatewayEvent(PaymentGateway gatewayName, String eventType, JsonNode rootNode) {
+        String normalizedGatewayName = gatewayName.name().toUpperCase();
         WebhookHandlerStrategy strategy = strategyMap.get(normalizedGatewayName);
         if (strategy != null) {
             strategy.handleEvent(eventType, rootNode, this);
@@ -159,18 +160,18 @@ public class WebhookProcessingService implements PaymentActionDelegate {
             }
             
             PaymentIntent intent = intentOpt.get();
-            if (intent.getStatus() == IntentStatus.SUCCESS) {
+            if (intent.getStatus() == PaymentIntentStatus.SUCCESS) {
                 logger.info("PaymentIntent {} is already marked as SUCCESS.", intent.getId());
                 return;
             }
 
-            intent.setStatus(IntentStatus.SUCCESS);
+            intent.setStatus(PaymentIntentStatus.SUCCESS);
                     
             PaymentSucceededEvent event = new PaymentSucceededEvent(
                     intent.getOrderId(),
                     intent.getGatewayOrderId(),
                     intent.getAmount(),
-                    intent.getGatewayName()
+                    intent.getGatewayName().name()
             );
 
             paymentIntentRepository.save(intent);
@@ -182,7 +183,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED)
                         .payload(objectMapper.writeValueAsString(event))
                         .createdAt(java.time.LocalDateTime.now())
-                        .status(com.fooddelivery.common.constants.AppConstants.OUTBOX_STATUS_UNPROCESSED)
+                        .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
                 outboxEventRepository.save(outbox);
             } catch (Exception e) {
@@ -200,17 +201,17 @@ public class WebhookProcessingService implements PaymentActionDelegate {
             }
             
             PaymentIntent intent = intentOpt.get();
-            if (intent.getStatus() == IntentStatus.FAILED || intent.getStatus() == IntentStatus.SUCCESS) {
+            if (intent.getStatus() == PaymentIntentStatus.FAILED || intent.getStatus() == PaymentIntentStatus.SUCCESS) {
                 logger.info("PaymentIntent {} is already in terminal state {}.", intent.getId(), intent.getStatus());
                 return;
             }
 
-            intent.setStatus(IntentStatus.FAILED);
+            intent.setStatus(PaymentIntentStatus.FAILED);
                     
             com.fooddelivery.common.event.PaymentFailedEvent event = new com.fooddelivery.common.event.PaymentFailedEvent(
                     java.util.UUID.fromString(intent.getOrderId()),
                     intent.getGatewayOrderId(),
-                    intent.getGatewayName(),
+                    intent.getGatewayName().name(),
                     failureReason
             );
 
@@ -223,7 +224,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_FAILED)
                         .payload(objectMapper.writeValueAsString(event))
                         .createdAt(java.time.LocalDateTime.now())
-                        .status(com.fooddelivery.common.constants.AppConstants.OUTBOX_STATUS_UNPROCESSED)
+                        .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
                 outboxEventRepository.save(outbox);
             } catch (Exception e) {
@@ -252,13 +253,13 @@ public class WebhookProcessingService implements PaymentActionDelegate {
             intent.setAmountRefunded(currentRefund.add(finalRefundAmount));
             
             if (intent.getAmountRefunded().compareTo(intent.getAmount()) >= 0) {
-                intent.setStatus(IntentStatus.REFUNDED);
+                intent.setStatus(PaymentIntentStatus.REFUNDED);
             } else {
-                intent.setStatus(IntentStatus.PARTIALLY_REFUNDED);
+                intent.setStatus(PaymentIntentStatus.PARTIALLY_REFUNDED);
             }
 
             // Also track on the transaction if one exists
-            Optional<com.fooddelivery.payments.model.Transaction> txOpt = transactionRepository.findFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(intent.getId(), com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS);
+            Optional<com.fooddelivery.payments.model.Transaction> txOpt = transactionRepository.findFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(intent.getId(), com.fooddelivery.common.enums.TransactionStatus.SUCCESS);
 
             paymentIntentRepository.save(intent);
             if (txOpt.isPresent()) {
@@ -283,7 +284,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED)
                         .payload(objectMapper.writeValueAsString(refundEvent))
                         .createdAt(java.time.LocalDateTime.now())
-                        .status(com.fooddelivery.common.constants.AppConstants.OUTBOX_STATUS_UNPROCESSED)
+                        .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
                 outboxEventRepository.save(outbox);
             } catch (Exception e) {

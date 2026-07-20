@@ -1,5 +1,6 @@
 package com.fooddelivery.payments.service.gateway;
 
+import com.fooddelivery.common.enums.PaymentGateway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -25,8 +26,8 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
     private com.fooddelivery.payments.service.WebhookProcessingService webhookService;
 
     @Override
-    public String getGatewayName() {
-        return "VYAPAR";
+    public PaymentGateway getGatewayName() {
+        return PaymentGateway.VYAPAR;
     }
 
     @Override
@@ -77,7 +78,7 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
-    public String verifyStatus(String gatewayOrderId) {
+    public com.fooddelivery.common.constants.PaymentIntentStatus verifyStatus(String gatewayOrderId) {
         return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
     }
 }
