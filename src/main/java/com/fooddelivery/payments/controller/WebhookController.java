@@ -58,6 +58,7 @@ public class WebhookController {
 
     private ResponseEntity<String> processWebhook(HttpServletRequest request, PaymentGateway gateway, String signature, String timestamp, String headerEventId) {
         try {
+            logger.info("Consumed webhook event from gateway: {}", gateway);
             if (signature == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing Signature");
             }

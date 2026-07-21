@@ -176,12 +176,15 @@ public class WebhookProcessingService implements PaymentActionDelegate {
 
             paymentIntentRepository.save(intent);
             try {
+                com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
+                payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED.name());
+                
                 com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
-                        .aggregateType(com.fooddelivery.common.constants.AppConstants.AGGREGATE_PAYMENT)
+                        .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                         .aggregateId(intent.getOrderId())
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED)
-                        .payload(objectMapper.writeValueAsString(event))
+                        .payload(objectMapper.writeValueAsString(payloadNode))
                         .createdAt(java.time.LocalDateTime.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
@@ -217,12 +220,15 @@ public class WebhookProcessingService implements PaymentActionDelegate {
 
             paymentIntentRepository.save(intent);
             try {
+                com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
+                payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_FAILED.name());
+                
                 com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
-                        .aggregateType(com.fooddelivery.common.constants.AppConstants.AGGREGATE_PAYMENT)
+                        .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                         .aggregateId(intent.getOrderId())
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_FAILED)
-                        .payload(objectMapper.writeValueAsString(event))
+                        .payload(objectMapper.writeValueAsString(payloadNode))
                         .createdAt(java.time.LocalDateTime.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
@@ -276,13 +282,16 @@ public class WebhookProcessingService implements PaymentActionDelegate {
                         .amountRefunded(finalRefundAmount)
                         .gatewayName(intent.getGatewayName())
                         .build();
-
+                
+                com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(refundEvent);
+                payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED.name());
+                
                 com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
-                        .aggregateType(com.fooddelivery.common.constants.AppConstants.AGGREGATE_PAYMENT)
+                        .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                         .aggregateId(intent.getOrderId().toString())
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED)
-                        .payload(objectMapper.writeValueAsString(refundEvent))
+                        .payload(objectMapper.writeValueAsString(payloadNode))
                         .createdAt(java.time.LocalDateTime.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
