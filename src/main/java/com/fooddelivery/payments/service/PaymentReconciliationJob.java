@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import java.time.Duration;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -20,18 +22,26 @@ public class PaymentReconciliationJob {
     private final IPaymentIntentRepository paymentIntentRepository;
     private final PaymentGatewayOrchestrator orchestrator;
     private final WebhookProcessingService webhookProcessingService;
+    private final StringRedisTemplate redisTemplate;
 
     public PaymentReconciliationJob(
             IPaymentIntentRepository paymentIntentRepository,
             PaymentGatewayOrchestrator orchestrator,
-            WebhookProcessingService webhookProcessingService) {
+            WebhookProcessingService webhookProcessingService,
+            StringRedisTemplate redisTemplate) {
         this.paymentIntentRepository = paymentIntentRepository;
         this.orchestrator = orchestrator;
         this.webhookProcessingService = webhookProcessingService;
+        this.redisTemplate = redisTemplate;
     }
 
     @Scheduled(fixedRateString = "${payment.reconciliation.interval:600000}")
     public void reconcileStuckPayments() {
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent("lock:reconcilePendingPayments", "1", Duration.ofSeconds(500));
+        if (!Boolean.TRUE.equals(locked)) {
+            return;
+        }
+
         logger.info("Starting Payment Reconciliation Job");
 
         // Find intents stuck in INITIATED for more than 10 minutes

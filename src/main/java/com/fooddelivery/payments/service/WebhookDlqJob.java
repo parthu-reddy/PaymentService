@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,17 +20,25 @@ public class WebhookDlqJob {
 
     private final IWebhookDeliveryRepository webhookDeliveryRepository;
     private final WebhookProcessingService webhookProcessingService;
+    private final StringRedisTemplate redisTemplate;
 
     public WebhookDlqJob(
             IWebhookDeliveryRepository webhookDeliveryRepository,
-            WebhookProcessingService webhookProcessingService) {
+            WebhookProcessingService webhookProcessingService,
+            StringRedisTemplate redisTemplate) {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
         this.webhookProcessingService = webhookProcessingService;
+        this.redisTemplate = redisTemplate;
     }
 
     // Run every 10 minutes
     @Scheduled(fixedRate = 600000)
     public void processFailedWebhooks() {
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent("lock:processWebhookDlq", "1", java.time.Duration.ofSeconds(500));
+        if (!Boolean.TRUE.equals(locked)) {
+            return;
+        }
+
         logger.info("Starting DLQ processing job for failed webhooks");
         
         // Find webhooks that failed and are older than 5 minutes (to allow DB to settle)
