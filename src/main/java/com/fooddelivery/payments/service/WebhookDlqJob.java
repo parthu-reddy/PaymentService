@@ -41,23 +41,27 @@ public class WebhookDlqJob {
 
         logger.info("Starting DLQ processing job for failed webhooks");
         
-        // Find webhooks that failed and are older than 5 minutes (to allow DB to settle)
-        List<WebhookDelivery> failedDeliveries = webhookDeliveryRepository.findTop100ByProcessingStatusAndCreatedAtBefore(
-                DeliveryStatus.FAILED,
-                java.time.ZonedDateTime.now().minusMinutes(10)
-        );
+        try {
+            // Find webhooks that failed and are older than 5 minutes (to allow DB to settle)
+            List<WebhookDelivery> failedDeliveries = webhookDeliveryRepository.findTop100ByProcessingStatusAndCreatedAtBefore(
+                    DeliveryStatus.FAILED,
+                    java.time.ZonedDateTime.now().minusMinutes(5)
+            );
 
-        for (WebhookDelivery delivery : failedDeliveries) {
-            try {
-                logger.info("Attempting to reprocess failed webhook event: {}", delivery.getEventId());
-                webhookProcessingService.retryWebhook(delivery);
-            } catch (Exception e) {
-                logger.error("DLQ retry failed for event: {}, marking as DEAD_LETTER", delivery.getEventId(), e);
-                delivery.setProcessingStatus(DeliveryStatus.DEAD_LETTER);
-                webhookDeliveryRepository.save(delivery);
+            for (WebhookDelivery delivery : failedDeliveries) {
+                try {
+                    logger.info("Attempting to reprocess failed webhook event: {}", delivery.getEventId());
+                    webhookProcessingService.retryWebhook(delivery);
+                } catch (Exception e) {
+                    logger.error("DLQ retry failed for event: {}, marking as DEAD_LETTER", delivery.getEventId(), e);
+                    delivery.setProcessingStatus(DeliveryStatus.DEAD_LETTER);
+                    webhookDeliveryRepository.save(delivery);
+                }
             }
+            
+            logger.info("Completed DLQ processing job");
+        } finally {
+            redisTemplate.delete("lock:processWebhookDlq");
         }
-        
-        logger.info("Completed DLQ processing job");
     }
 }
