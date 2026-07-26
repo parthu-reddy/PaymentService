@@ -34,7 +34,7 @@ public class WebhookDlqJob {
     // Run every 10 minutes
     @Scheduled(fixedRate = 600000)
     public void processFailedWebhooks() {
-        Boolean locked = redisTemplate.opsForValue().setIfAbsent("lock:processWebhookDlq", "1", java.time.Duration.ofSeconds(500));
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_PROCESS_WEBHOOK_DLQ, "1", java.time.Duration.ofSeconds(500));
         if (!Boolean.TRUE.equals(locked)) {
             return;
         }

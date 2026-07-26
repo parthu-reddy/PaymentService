@@ -25,11 +25,19 @@ public class WebhookDlqJobTest {
     @Mock
     private WebhookProcessingService webhookProcessingService;
 
+    @Mock
+    private org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+
     @InjectMocks
     private WebhookDlqJob job;
 
     @Test
     void testProcessFailedWebhooks_TransitionsToDeadLetter() {
+        @SuppressWarnings("unchecked")
+        org.springframework.data.redis.core.ValueOperations<String, String> valOps = mock(org.springframework.data.redis.core.ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valOps);
+        when(valOps.setIfAbsent(anyString(), anyString(), any())).thenReturn(Boolean.TRUE);
+
         WebhookDelivery delivery = new WebhookDelivery();
         delivery.setEventId("evt_fail");
         delivery.setGatewayName(com.fooddelivery.common.enums.PaymentGateway.VYAPAR);

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -35,12 +36,22 @@ public class WebhookProcessingService implements PaymentActionDelegate {
 
     private static final Logger logger = LoggerFactory.getLogger(WebhookProcessingService.class);
     
+    private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
+    private static final String LOCK_VALUE = "locked";
+    private static final String DEFAULT_EVENT_TYPE = "UNKNOWN";
+    private static final String EMPTY_JSON_PAYLOAD = "{}";
+    private static final String FIELD_EVENT = "event";
+    private static final String FIELD_TYPE = "type";
+    private static final String FIELD_AMOUNT_REFUNDED = "amount_refunded";
+    private static final String FIELD_AMOUNT = "amount";
+    
     private final IWebhookDeliveryRepository webhookDeliveryRepository;
     private final IPaymentIntentRepository paymentIntentRepository;
     private final ITransactionRepository transactionRepository;
     private final ObjectMapper objectMapper;
     private final com.fooddelivery.common.outbox.repository.OutboxEventRepository outboxEventRepository;
     private final TransactionTemplate transactionTemplate;
+    private final StringRedisTemplate redisTemplate;
 
     private final Map<String, WebhookHandlerStrategy> strategyMap;
 
@@ -51,6 +62,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
             ObjectMapper objectMapper,
             com.fooddelivery.common.outbox.repository.OutboxEventRepository outboxEventRepository,
             TransactionTemplate transactionTemplate,
+            StringRedisTemplate redisTemplate,
             List<WebhookHandlerStrategy> strategies) {
         this.webhookDeliveryRepository = webhookDeliveryRepository;
         this.paymentIntentRepository = paymentIntentRepository;
@@ -58,6 +70,7 @@ public class WebhookProcessingService implements PaymentActionDelegate {
         this.objectMapper = objectMapper;
         this.outboxEventRepository = outboxEventRepository;
         this.transactionTemplate = transactionTemplate;
+        this.redisTemplate = redisTemplate;
         this.strategyMap = strategies.stream()
             .collect(Collectors.toMap(s -> s.getSupportedGateway().name(), Function.identity()));
     }
@@ -74,56 +87,79 @@ public class WebhookProcessingService implements PaymentActionDelegate {
       backoff = @Backoff(delay = 1000, multiplier = 2)
     )
     public void processWebhookAsync(String eventId, PaymentGateway gatewayName, String rawBody) {
-        if (isEventProcessed(eventId)) {
+        String lockKey = LOCK_PREFIX_WEBHOOK + eventId;
+        String lockValue = java.util.UUID.randomUUID().toString();
+        Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, lockValue, java.time.Duration.ofMinutes(2));
+        
+        if (Boolean.FALSE.equals(lockAcquired)) {
+            logger.info("Duplicate webhook eventId {} rejected by Redis lock.", eventId);
             return;
         }
-        
-        WebhookDelivery delivery;
+
         try {
-            delivery = new WebhookDelivery();
-            delivery.setEventId(eventId);
-            delivery.setGatewayName(gatewayName);
-            delivery.setProcessingStatus(DeliveryStatus.PENDING);
-            delivery.setEventType("UNKNOWN");
-            delivery.setPayload("{}"); // temporary payload to satisfy not-null constraint
-            delivery = webhookDeliveryRepository.saveAndFlush(delivery);
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            logger.info("Duplicate webhook eventId {}. Another thread is processing it.", eventId);
-            return;
-        }
-        
-        String eventType = "UNKNOWN";
-        try {
-            JsonNode rootNode = objectMapper.readTree(rawBody);
-            
-            if (rootNode.has("event")) {
-                eventType = rootNode.get("event").asText();
-            } else if (rootNode.has("type")) {
-                eventType = rootNode.get("type").asText();
+            if (isEventProcessed(eventId)) {
+                return;
             }
-
-            delivery.setEventType(eventType);
             
-            // Performance optimization: Parse once, create deep copy, mask, and serialize
-            JsonNode payloadCopy = rootNode.deepCopy();
-            maskNode(payloadCopy);
-            delivery.setPayload(objectMapper.writeValueAsString(payloadCopy));
-            
-            delivery.setProcessingStatus(DeliveryStatus.PENDING);
-            webhookDeliveryRepository.save(delivery);
-
-            processGatewayEvent(gatewayName, eventType, rootNode);
-            
-            delivery.setProcessingStatus(DeliveryStatus.COMPLETED);
-            webhookDeliveryRepository.save(delivery);
-        } catch (org.springframework.dao.CannotAcquireLockException | org.springframework.dao.DeadlockLoserDataAccessException e) {
-            logger.warn("Transient locking failure for webhook event: {}. Will be retried.", eventId);
-            throw e;
-        } catch (Exception e) {
-            logger.error("Failed to process webhook event: {}", eventId, e);
-            delivery.setProcessingStatus(DeliveryStatus.FAILED);
-            delivery.setErrorLog(e.getMessage());
-            webhookDeliveryRepository.save(delivery);
+            WebhookDelivery delivery = null;
+            try {
+                try {
+                    delivery = new WebhookDelivery();
+                    delivery.setEventId(eventId);
+                    delivery.setGatewayName(gatewayName);
+                    delivery.setProcessingStatus(DeliveryStatus.PENDING);
+                    delivery.setEventType(DEFAULT_EVENT_TYPE);
+                    delivery.setPayload(EMPTY_JSON_PAYLOAD); // temporary payload to satisfy not-null constraint
+                    delivery = webhookDeliveryRepository.saveAndFlush(delivery);
+                } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                    logger.info("Duplicate webhook eventId {}. Another thread is processing it.", eventId);
+                    return;
+                }
+                
+                String eventType = DEFAULT_EVENT_TYPE;
+                JsonNode rootNode = objectMapper.readTree(rawBody);
+                
+                if (rootNode.has(FIELD_EVENT)) {
+                    eventType = rootNode.get(FIELD_EVENT).asText();
+                } else if (rootNode.has(FIELD_TYPE)) {
+                    eventType = rootNode.get(FIELD_TYPE).asText();
+                }
+    
+                delivery.setEventType(eventType);
+                
+                // Performance optimization: Parse once, create deep copy, mask, and serialize
+                JsonNode payloadCopy = rootNode.deepCopy();
+                maskNode(payloadCopy);
+                delivery.setPayload(objectMapper.writeValueAsString(payloadCopy));
+                
+                delivery.setProcessingStatus(DeliveryStatus.PENDING);
+                webhookDeliveryRepository.save(delivery);
+    
+                processGatewayEvent(gatewayName, eventType, rootNode);
+                
+                delivery.setProcessingStatus(DeliveryStatus.COMPLETED);
+                webhookDeliveryRepository.save(delivery);
+            } catch (org.springframework.dao.CannotAcquireLockException | org.springframework.dao.DeadlockLoserDataAccessException e) {
+                logger.warn("Transient locking failure for webhook event: {}. Will be retried.", eventId);
+                throw e;
+            } catch (Exception e) {
+                logger.error("Failed to process webhook event: {}", eventId, e);
+                if (delivery != null && delivery.getId() != null) {
+                    try {
+                        delivery.setProcessingStatus(DeliveryStatus.FAILED);
+                        delivery.setErrorLog(e.getMessage());
+                        webhookDeliveryRepository.save(delivery);
+                    } catch (Exception dbEx) {
+                        logger.error("Failed to save FAILED status for webhook event: {}", eventId, dbEx);
+                    }
+                }
+            }
+        } finally {
+            // Only release the lock if we are the ones who acquired it
+            String currentValue = redisTemplate.opsForValue().get(lockKey);
+            if (lockValue.equals(currentValue)) {
+                redisTemplate.delete(lockKey);
+            }
         }
     }
 
@@ -249,9 +285,9 @@ public class WebhookProcessingService implements PaymentActionDelegate {
             
             PaymentIntent intent = intentOpt.get();
             
-            BigDecimal tempRefund = new BigDecimal(rootNode.path("amount_refunded").asText("0"));
-            if (tempRefund.compareTo(BigDecimal.ZERO) == 0 && rootNode.has("amount")) {
-                 tempRefund = new BigDecimal(rootNode.path("amount").asText("0"));
+            BigDecimal tempRefund = new BigDecimal(rootNode.path(FIELD_AMOUNT_REFUNDED).asText("0"));
+            if (tempRefund.compareTo(BigDecimal.ZERO) == 0 && rootNode.has(FIELD_AMOUNT)) {
+                 tempRefund = new BigDecimal(rootNode.path(FIELD_AMOUNT).asText("0"));
             }
             final BigDecimal finalRefundAmount = tempRefund;
             

@@ -9,8 +9,10 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import com.fooddelivery.common.enums.PaymentGateway;
 
+@Slf4j
 @Service
 public class PaymentGatewayOrchestrator {
 
@@ -33,10 +35,30 @@ public class PaymentGatewayOrchestrator {
     }
 
     public String createOrder(PaymentGateway gatewayName, PaymentRequestContext context) {
-        return getStrategy(gatewayName).createOrder(context);
+        log.info("Creating order using gateway: {}", gatewayName);
+        try {
+            String orderId = getStrategy(gatewayName).createOrder(context);
+            log.info("Successfully created order {} using gateway: {}", orderId, gatewayName);
+            return orderId;
+        } catch (Exception e) {
+            log.error("Failed to create order using gateway: {}", gatewayName, e);
+            throw e;
+        }
     }
 
     public boolean initiateRefund(PaymentGateway gatewayName, String gatewayOrderId, double amount, String reason) {
-        return getStrategy(gatewayName).initiateRefund(gatewayOrderId, amount, reason);
+        log.info("Initiating refund for order: {} using gateway: {}", gatewayOrderId, gatewayName);
+        try {
+            boolean success = getStrategy(gatewayName).initiateRefund(gatewayOrderId, amount, reason);
+            if (success) {
+                log.info("Successfully initiated refund for order: {} using gateway: {}", gatewayOrderId, gatewayName);
+            } else {
+                log.warn("Failed to initiate refund for order: {} using gateway: {}", gatewayOrderId, gatewayName);
+            }
+            return success;
+        } catch (Exception e) {
+            log.error("Error while initiating refund for order: {} using gateway: {}", gatewayOrderId, gatewayName, e);
+            throw e;
+        }
     }
 }

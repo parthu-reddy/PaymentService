@@ -38,9 +38,16 @@ class PaymentGatewayOrchestratorTest {
 
     @Test
     void getStrategy_ShouldThrowExceptionForUnsupportedGateway() {
-        assertThatThrownBy(() -> orchestrator.getStrategy(null))
+        assertThatThrownBy(() -> orchestrator.getStrategy(PaymentGateway.RAZORPAY))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported gateway");
+    }
+
+    @Test
+    void getStrategy_ShouldThrowExceptionForNullGateway() {
+        assertThatThrownBy(() -> orchestrator.getStrategy(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Gateway name cannot be null");
     }
 
     @Test

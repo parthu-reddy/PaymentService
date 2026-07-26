@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import com.fooddelivery.common.outbox.repository.OutboxEventRepository;
 import org.mockito.InjectMocks;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +45,9 @@ public class WebhookProcessingServiceTest {
     private OutboxEventRepository outboxEventRepository;
 
     @Mock
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Mock
     private TransactionTemplate transactionTemplate;
 
     private WebhookProcessingService service;
@@ -70,7 +74,13 @@ public class WebhookProcessingServiceTest {
                 objectMapper,
                 outboxEventRepository,
                 transactionTemplate,
+                stringRedisTemplate,
                 java.util.Collections.singletonList(vyaparStub));
+
+        @SuppressWarnings("unchecked")
+        org.springframework.data.redis.core.ValueOperations<String, String> valOps = mock(org.springframework.data.redis.core.ValueOperations.class);
+        lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valOps);
+        lenient().when(valOps.setIfAbsent(anyString(), anyString(), any())).thenReturn(Boolean.TRUE);
 
         lenient().doAnswer(invocation -> {
             java.util.function.Consumer<TransactionStatus> action = invocation.getArgument(0);
@@ -86,6 +96,7 @@ public class WebhookProcessingServiceTest {
         intent.setStatus(PaymentIntentStatus.INITIATED);
         intent.setOrderId(UUID.randomUUID().toString());
         intent.setAmount(new BigDecimal("100.00"));
+        intent.setGatewayName(com.fooddelivery.common.enums.PaymentGateway.VYAPAR);
 
         when(paymentIntentRepository.findLockedByGatewayOrderId("ord_123")).thenReturn(Optional.of(intent));
 
@@ -98,5 +109,16 @@ public class WebhookProcessingServiceTest {
         verify(webhookDeliveryRepository, times(2)).save(deliveryCaptor.capture());
         assertEquals(PaymentIntentStatus.SUCCESS, intent.getStatus());
         verify(paymentIntentRepository).save(intent);
+    }
+
+    @Test
+    void testProcessWebhookAsync_deletesLockOnException() {
+        when(webhookDeliveryRepository.saveAndFlush(any(WebhookDelivery.class)))
+                .thenThrow(new RuntimeException("Simulated DB error"));
+
+        String rawBody = "{\"event\":\"payment.success\",\"payload\":{}}";
+        service.processWebhookAsync("evt_error_123", com.fooddelivery.common.enums.PaymentGateway.VYAPAR, rawBody);
+
+        verify(stringRedisTemplate).delete("webhook:payment:evt_error_123");
     }
 }

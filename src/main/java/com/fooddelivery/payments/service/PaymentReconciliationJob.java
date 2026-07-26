@@ -37,7 +37,7 @@ public class PaymentReconciliationJob {
 
     @Scheduled(fixedRateString = "${payment.reconciliation.interval:600000}")
     public void reconcileStuckPayments() {
-        Boolean locked = redisTemplate.opsForValue().setIfAbsent("lock:reconcilePendingPayments", "1", Duration.ofSeconds(500));
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_RECONCILE_PENDING_PAYMENTS, "1", Duration.ofSeconds(500));
         if (!Boolean.TRUE.equals(locked)) {
             return;
         }

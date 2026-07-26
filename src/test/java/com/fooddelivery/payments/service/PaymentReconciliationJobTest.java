@@ -33,12 +33,18 @@ public class PaymentReconciliationJobTest {
     @Mock
     private IPaymentGatewayStrategy mockStrategy;
 
+    @Mock
+    private org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+
     private PaymentReconciliationJob job;
 
     @BeforeEach
     void setUp() {
-        job = new PaymentReconciliationJob(paymentIntentRepository, orchestrator, webhookProcessingService);
+        job = new PaymentReconciliationJob(paymentIntentRepository, orchestrator, webhookProcessingService, redisTemplate);
     }
+
+    @Mock
+    private org.springframework.data.redis.core.ValueOperations<String, String> valueOperations;
 
     @Test
     void testReconcileStuckPayments() {
@@ -48,6 +54,9 @@ public class PaymentReconciliationJobTest {
         intent.setStatus(PaymentIntentStatus.INITIATED);
         intent.setAmount(new BigDecimal("100.00"));
         intent.setOrderId(UUID.randomUUID().toString());
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.setIfAbsent(eq("lock:reconcilePendingPayments"), eq("1"), any())).thenReturn(true);
 
         when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(ZonedDateTime.class)))
                 .thenReturn(List.of(intent));
