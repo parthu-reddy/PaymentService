@@ -23,7 +23,7 @@ import java.time.Duration;
 import org.springframework.context.annotation.Profile;
 
 @Service
-@Profile("!debug")
+@Profile("prod")
 public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(VyaparGatewayStrategy.class);

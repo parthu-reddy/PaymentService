@@ -61,7 +61,7 @@ public class WebhookDlqJob {
             
             logger.info("Completed DLQ processing job");
         } finally {
-            redisTemplate.delete("lock:processWebhookDlq");
+            redisTemplate.delete(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_PROCESS_WEBHOOK_DLQ);
         }
     }
 }

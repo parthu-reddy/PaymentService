@@ -13,7 +13,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 @Service
-@Profile("debug")
+@Profile({"debug", "dev", "default"})
 public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(MockVyaparGatewayStrategy.class);
@@ -37,10 +37,13 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
         
         new Thread(() -> {
             try {
+                logger.info("MockVyaparGatewayStrategy thread started for gatewayOrderId: {}", gatewayOrderId);
                 Thread.sleep(2000); // Wait 2s to simulate network delay and allow intent to be saved
+                logger.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
                 webhookService.handleSuccessfulPayment(gatewayOrderId);
-            } catch (Exception e) {
-                logger.error("Error auto-triggering payment success", e);
+                logger.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
+            } catch (Throwable e) {
+                logger.error("Error auto-triggering payment success in MockVyaparGatewayStrategy thread", e);
             }
         }).start();
 
