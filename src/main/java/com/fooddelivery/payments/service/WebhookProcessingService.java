@@ -320,13 +320,16 @@ public class WebhookProcessingService implements PaymentActionDelegate {
                         .build();
                 
                 com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(refundEvent);
-                payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED.name());
+                com.fooddelivery.common.constants.EventType outboxEventType = (intent.getStatus() == PaymentIntentStatus.PARTIALLY_REFUNDED) ? 
+                    com.fooddelivery.common.constants.EventType.PAYMENT_PARTIALLY_REFUNDED : 
+                    com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED;
+                payloadNode.put("eventType", outboxEventType.name());
                 
                 com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
                         .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                         .aggregateId(intent.getOrderId().toString())
-                        .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED)
+                        .eventType(outboxEventType)
                         .payload(objectMapper.writeValueAsString(payloadNode))
                         .createdAt(java.time.LocalDateTime.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
