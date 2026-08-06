@@ -7,8 +7,6 @@ import com.fooddelivery.payments.model.WebhookDelivery;
 import com.fooddelivery.payments.repository.IPaymentIntentRepository;
 import com.fooddelivery.payments.repository.ITransactionRepository;
 import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,13 +28,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class WebhookProcessingService implements PaymentActionDelegate {
-
-    private static final Logger logger = LoggerFactory.getLogger(WebhookProcessingService.class);
-    
-    private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
+private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
     private static final String LOCK_VALUE = "locked";
     private static final String DEFAULT_EVENT_TYPE = "UNKNOWN";
     private static final String EMPTY_JSON_PAYLOAD = "{}";

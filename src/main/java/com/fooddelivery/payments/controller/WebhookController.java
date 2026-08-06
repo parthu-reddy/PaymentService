@@ -4,8 +4,6 @@ import com.fooddelivery.payments.service.PaymentGatewayOrchestrator;
 import com.fooddelivery.payments.service.WebhookProcessingService;
 import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
 import com.fooddelivery.common.enums.PaymentGateway;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,14 +11,13 @@ import org.springframework.web.util.ContentCachingRequestWrapper;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/webhooks")
+@Slf4j
 public class WebhookController {
-
-    private static final Logger logger = LoggerFactory.getLogger(WebhookController.class);
-    
-    private final WebhookProcessingService webhookProcessingService;
+private final WebhookProcessingService webhookProcessingService;
     private final PaymentGatewayOrchestrator orchestrator;
 
     public WebhookController(WebhookProcessingService webhookProcessingService, PaymentGatewayOrchestrator orchestrator) {

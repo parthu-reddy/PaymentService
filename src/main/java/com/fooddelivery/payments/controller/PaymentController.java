@@ -15,11 +15,13 @@ import java.util.UUID;
 import com.fooddelivery.common.enums.PaymentGateway;
 
 import org.springframework.security.access.prepost.PreAuthorize;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/payments")
 @CrossOrigin(origins = "${cors.allowed-origins:*}") // Allows cross-origin requests from configured domains
 @PreAuthorize("isAuthenticated()")
+@Slf4j
 public class PaymentController {
 
     private final PaymentGatewayOrchestrator orchestrator;
