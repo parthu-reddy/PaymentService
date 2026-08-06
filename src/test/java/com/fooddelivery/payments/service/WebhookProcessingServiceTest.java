@@ -80,7 +80,27 @@ public class WebhookProcessingServiceTest {
         @SuppressWarnings("unchecked")
         org.springframework.data.redis.core.ValueOperations<String, String> valOps = mock(org.springframework.data.redis.core.ValueOperations.class);
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valOps);
-        lenient().when(valOps.setIfAbsent(anyString(), anyString(), any())).thenReturn(Boolean.TRUE);
+        
+        // Mock Redis lock behavior
+        java.util.Map<String, String> mockRedisStore = new java.util.HashMap<>();
+        lenient().when(valOps.setIfAbsent(anyString(), anyString(), any())).thenAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            String value = invocation.getArgument(1);
+            if (!mockRedisStore.containsKey(key)) {
+                mockRedisStore.put(key, value);
+                return Boolean.TRUE;
+            }
+            return Boolean.FALSE;
+        });
+        lenient().when(valOps.get(anyString())).thenAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            return mockRedisStore.get(key);
+        });
+        lenient().when(stringRedisTemplate.delete(anyString())).thenAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            mockRedisStore.remove(key);
+            return true;
+        });
 
         lenient().doAnswer(invocation -> {
             java.util.function.Consumer<TransactionStatus> action = invocation.getArgument(0);

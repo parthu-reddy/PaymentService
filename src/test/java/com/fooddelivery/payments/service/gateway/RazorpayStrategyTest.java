@@ -49,7 +49,7 @@ public class RazorpayStrategyTest {
 
         PaymentRequestContext context = PaymentRequestContext.builder()
                 .amountInInr(new BigDecimal("100.00"))
-                .internalOrderId(java.util.UUID.randomUUID())
+                .internalOrderId(java.util.UUID.randomUUID().toString())
                 .receiptRef("rcpt_1")
                 .customerPhone("9876543210")
                 .build();

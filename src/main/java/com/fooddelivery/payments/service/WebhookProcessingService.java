@@ -133,12 +133,12 @@ public class WebhookProcessingService implements PaymentActionDelegate {
                 delivery.setPayload(objectMapper.writeValueAsString(payloadCopy));
                 
                 delivery.setProcessingStatus(DeliveryStatus.PENDING);
-                webhookDeliveryRepository.save(delivery);
+                delivery = webhookDeliveryRepository.save(delivery);
     
                 processGatewayEvent(gatewayName, eventType, rootNode);
                 
                 delivery.setProcessingStatus(DeliveryStatus.COMPLETED);
-                webhookDeliveryRepository.save(delivery);
+                delivery = webhookDeliveryRepository.save(delivery);
             } catch (org.springframework.dao.CannotAcquireLockException | org.springframework.dao.DeadlockLoserDataAccessException e) {
                 logger.warn("Transient locking failure for webhook event: {}. Will be retried.", eventId);
                 throw e;
@@ -148,7 +148,12 @@ public class WebhookProcessingService implements PaymentActionDelegate {
                     try {
                         delivery.setProcessingStatus(DeliveryStatus.FAILED);
                         delivery.setErrorLog(e.getMessage());
-                        webhookDeliveryRepository.save(delivery);
+                        // Fetch the latest version from DB to avoid optimistic locking failure when saving failure status
+                        webhookDeliveryRepository.findById(delivery.getId()).ifPresent(latestDelivery -> {
+                            latestDelivery.setProcessingStatus(DeliveryStatus.FAILED);
+                            latestDelivery.setErrorLog(e.getMessage());
+                            webhookDeliveryRepository.save(latestDelivery);
+                        });
                     } catch (Exception dbEx) {
                         logger.error("Failed to save FAILED status for webhook event: {}", eventId, dbEx);
                     }
@@ -213,13 +218,19 @@ public class WebhookProcessingService implements PaymentActionDelegate {
             paymentIntentRepository.save(intent);
             try {
                 com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
-                payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED.name());
+                
+                boolean isWalletTopup = intent.getOrderId().startsWith("WALLET_");
+                com.fooddelivery.common.constants.EventType eventType = isWalletTopup ? 
+                    com.fooddelivery.common.constants.EventType.AD_WALLET_TOPUP_COMPLETED : 
+                    com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED;
+                
+                payloadNode.put("eventType", eventType.name());
                 
                 com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
                         .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                         .aggregateId(intent.getOrderId())
-                        .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED)
+                        .eventType(eventType)
                         .payload(objectMapper.writeValueAsString(payloadNode))
                         .createdAt(java.time.LocalDateTime.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)

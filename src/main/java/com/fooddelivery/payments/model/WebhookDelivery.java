@@ -23,7 +23,7 @@ public class WebhookDelivery extends BaseEntity {
     private String eventType;
 
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
-    @Column(name = "payload", columnDefinition = "JSONB", nullable = false)
+    @Column(name = "payload", nullable = false)
     private String payload; // Store JSON as string, postgres maps it to jsonb if mapped right or we can just use string
 
     @Enumerated(EnumType.STRING)

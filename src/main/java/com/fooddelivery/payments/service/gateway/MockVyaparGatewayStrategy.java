@@ -13,7 +13,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 @Service
-@Profile({"debug", "dev", "default"})
+@Profile({"debug", "dev", "default", "test"})
 public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(MockVyaparGatewayStrategy.class);

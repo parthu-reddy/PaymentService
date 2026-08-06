@@ -53,7 +53,7 @@ class PaymentGatewayOrchestratorTest {
     @Test
     void createOrder_ShouldDelegateToStrategy() {
         PaymentRequestContext context = PaymentRequestContext.builder()
-                .internalOrderId(java.util.UUID.randomUUID())
+                .internalOrderId(java.util.UUID.randomUUID().toString())
                 .amountInInr(new java.math.BigDecimal("100.00"))
                 .receiptRef("receipt")
                 .customerPhone("1234567890")

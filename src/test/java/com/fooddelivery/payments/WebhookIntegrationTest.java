@@ -15,6 +15,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -28,7 +36,35 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@org.springframework.test.context.TestPropertySource(properties = {
+    "spring.flyway.enabled=false",
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "spring.kafka.admin.auto-create=false",
+    "cashfree.client.id=dummy",
+    "cashfree.client.secret=dummy",
+    "cashfree.environment=SANDBOX",
+    "razorpay.key.id=dummy",
+    "razorpay.key.secret=dummy",
+    "razorpay.webhook.secret=dummy",
+    "vyapar.api.key=dummy",
+    "vyapar.api.secret=dummy",
+    "vyapar.webhook.secret=c0e76bf082a4b56243a56a9e9a5c9ed1f038a5af1ab8179d2b6ebb11e9ac864f"
+})
 public class WebhookIntegrationTest {
+
+    @org.springframework.boot.test.context.TestConfiguration
+    static class SyncTaskExecutorConfig {
+        @org.springframework.context.annotation.Bean(name = "taskExecutor")
+        @org.springframework.context.annotation.Primary
+        public org.springframework.core.task.TaskExecutor taskExecutor() {
+            return new org.springframework.core.task.SyncTaskExecutor();
+        }
+    }
+    @MockBean
+    private StringRedisTemplate stringRedisTemplate;
+
+    @MockBean
+    private LettuceBasedProxyManager lettuceProxyManager;
 
     @Autowired
     private MockMvc mockMvc;
@@ -46,6 +82,30 @@ public class WebhookIntegrationTest {
     void setup() {
         webhookDeliveryRepository.deleteAll();
         paymentIntentRepository.deleteAll();
+
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, String> valOps = mock(ValueOperations.class);
+        lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valOps);
+        
+        java.util.Map<String, String> mockRedisStore = new java.util.HashMap<>();
+        lenient().when(valOps.setIfAbsent(anyString(), anyString(), any())).thenAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            String value = invocation.getArgument(1);
+            if (!mockRedisStore.containsKey(key)) {
+                mockRedisStore.put(key, value);
+                return Boolean.TRUE;
+            }
+            return Boolean.FALSE;
+        });
+        lenient().when(valOps.get(anyString())).thenAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            return mockRedisStore.get(key);
+        });
+        lenient().when(stringRedisTemplate.delete(anyString())).thenAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            mockRedisStore.remove(key);
+            return true;
+        });
     }
 
     @Test

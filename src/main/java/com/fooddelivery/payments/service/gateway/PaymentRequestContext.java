@@ -9,7 +9,7 @@ import java.util.UUID;
 @Getter
 @Builder
 public class PaymentRequestContext {
-    private UUID internalOrderId;
+    private String internalOrderId;
     private BigDecimal amountInInr;
     private String receiptRef;
     private String customerPhone;

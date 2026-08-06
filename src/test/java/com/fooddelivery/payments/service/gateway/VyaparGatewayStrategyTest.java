@@ -33,7 +33,7 @@ public class VyaparGatewayStrategyTest {
     @Test
     void testCreateOrder_ReturnsIntentString() throws Exception {
         PaymentRequestContext context = PaymentRequestContext.builder()
-                .internalOrderId(UUID.randomUUID())
+                .internalOrderId(UUID.randomUUID().toString())
                 .amountInInr(new BigDecimal("100.50"))
                 .customerPhone("9876543210")
                 .build();
