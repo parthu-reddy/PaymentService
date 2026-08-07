@@ -1,15 +1,11 @@
 package com.fooddelivery.payments.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 import java.math.BigDecimal;
 import com.fooddelivery.common.enums.RefundStatus;
 
 @Entity
 @Table(name = "refunds")
-@Getter
-@Setter
 public class Refund extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -28,4 +24,45 @@ public class Refund extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RefundStatus status = RefundStatus.PENDING;
+
+    public Transaction getTransaction() {
+        return this.transaction;
+    }
+
+    public String getGatewayRefundId() {
+        return this.gatewayRefundId;
+    }
+
+    public BigDecimal getAmount() {
+        return this.amount;
+    }
+
+    public String getReason() {
+        return this.reason;
+    }
+
+    public RefundStatus getStatus() {
+        return this.status;
+    }
+
+    public void setTransaction(Transaction transaction) {
+        this.transaction = transaction;
+    }
+
+    public void setGatewayRefundId(String gatewayRefundId) {
+        this.gatewayRefundId = gatewayRefundId;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public void setStatus(RefundStatus status) {
+        this.status = status;
+    }
+
 }

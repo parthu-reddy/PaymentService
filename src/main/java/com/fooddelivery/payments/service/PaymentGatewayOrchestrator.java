@@ -1,5 +1,8 @@
 package com.fooddelivery.payments.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
 import com.fooddelivery.payments.service.gateway.PaymentRequestContext;
 import org.springframework.stereotype.Service;
@@ -9,12 +12,11 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.Slf4j;
 import com.fooddelivery.common.enums.PaymentGateway;
 
-@Slf4j
 @Service
 public class PaymentGatewayOrchestrator {
+    private static final Logger log = LoggerFactory.getLogger(PaymentGatewayOrchestrator.class);
 
     private final Map<PaymentGateway, IPaymentGatewayStrategy> strategies;
 

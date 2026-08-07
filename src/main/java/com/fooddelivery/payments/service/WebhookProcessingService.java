@@ -1,5 +1,8 @@
 package com.fooddelivery.payments.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fooddelivery.payments.model.PaymentIntent;
@@ -28,11 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
-@Slf4j
 public class WebhookProcessingService implements PaymentActionDelegate {
+    private static final Logger log = LoggerFactory.getLogger(WebhookProcessingService.class);
 private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
     private static final String LOCK_VALUE = "locked";
     private static final String DEFAULT_EVENT_TYPE = "UNKNOWN";
@@ -89,7 +91,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
         Boolean lockAcquired = redisTemplate.opsForValue().setIfAbsent(lockKey, lockValue, java.time.Duration.ofMinutes(2));
         
         if (Boolean.FALSE.equals(lockAcquired)) {
-            logger.info("Duplicate webhook eventId {} rejected by Redis lock.", eventId);
+            log.info("Duplicate webhook eventId {} rejected by Redis lock.", eventId);
             return;
         }
 
@@ -109,7 +111,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                     delivery.setPayload(EMPTY_JSON_PAYLOAD); // temporary payload to satisfy not-null constraint
                     delivery = webhookDeliveryRepository.saveAndFlush(delivery);
                 } catch (org.springframework.dao.DataIntegrityViolationException e) {
-                    logger.info("Duplicate webhook eventId {}. Another thread is processing it.", eventId);
+                    log.info("Duplicate webhook eventId {}. Another thread is processing it.", eventId);
                     return;
                 }
                 
@@ -137,10 +139,10 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                 delivery.setProcessingStatus(DeliveryStatus.COMPLETED);
                 delivery = webhookDeliveryRepository.save(delivery);
             } catch (org.springframework.dao.CannotAcquireLockException | org.springframework.dao.DeadlockLoserDataAccessException e) {
-                logger.warn("Transient locking failure for webhook event: {}. Will be retried.", eventId);
+                log.warn("Transient locking failure for webhook event: {}. Will be retried.", eventId);
                 throw e;
             } catch (Exception e) {
-                logger.error("Failed to process webhook event: {}", eventId, e);
+                log.error("Failed to process webhook event: {}", eventId, e);
                 if (delivery != null && delivery.getId() != null) {
                     try {
                         delivery.setProcessingStatus(DeliveryStatus.FAILED);
@@ -152,7 +154,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                             webhookDeliveryRepository.save(latestDelivery);
                         });
                     } catch (Exception dbEx) {
-                        logger.error("Failed to save FAILED status for webhook event: {}", eventId, dbEx);
+                        log.error("Failed to save FAILED status for webhook event: {}", eventId, dbEx);
                     }
                 }
             }
@@ -172,7 +174,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
             delivery.setProcessingStatus(DeliveryStatus.COMPLETED);
             webhookDeliveryRepository.save(delivery);
         } catch (Exception e) {
-            logger.error("Failed to retry webhook event: {}", delivery.getEventId(), e);
+            log.error("Failed to retry webhook event: {}", delivery.getEventId(), e);
             delivery.setErrorLog("DLQ Retry Failed: " + e.getMessage());
             webhookDeliveryRepository.save(delivery);
             throw new RuntimeException(e);
@@ -185,7 +187,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
         if (strategy != null) {
             strategy.handleEvent(eventType, rootNode, this);
         } else {
-            logger.warn("Received webhook for unknown gateway: {}", gatewayName);
+            log.warn("Received webhook for unknown gateway: {}", gatewayName);
         }
     }
 
@@ -199,7 +201,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
             
             PaymentIntent intent = intentOpt.get();
             if (intent.getStatus() == PaymentIntentStatus.SUCCESS) {
-                logger.info("PaymentIntent {} is already marked as SUCCESS.", intent.getId());
+                log.info("PaymentIntent {} is already marked as SUCCESS.", intent.getId());
                 return;
             }
 
@@ -249,7 +251,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
             
             PaymentIntent intent = intentOpt.get();
             if (intent.getStatus() == PaymentIntentStatus.FAILED || intent.getStatus() == PaymentIntentStatus.SUCCESS) {
-                logger.info("PaymentIntent {} is already in terminal state {}.", intent.getId(), intent.getStatus());
+                log.info("PaymentIntent {} is already in terminal state {}.", intent.getId(), intent.getStatus());
                 return;
             }
 
@@ -344,7 +346,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                         .build();
                 outboxEventRepository.save(outbox);
             } catch (Exception e) {
-                logger.error("Failed to serialize or save PaymentRefundedEvent for gatewayOrderId: " + gatewayOrderId, e);
+                log.error("Failed to serialize or save PaymentRefundedEvent for gatewayOrderId: " + gatewayOrderId, e);
                 throw new RuntimeException("Failed to save PaymentRefundedEvent to Outbox", e);
             }
         });

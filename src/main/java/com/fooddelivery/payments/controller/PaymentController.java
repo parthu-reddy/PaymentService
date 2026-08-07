@@ -1,5 +1,8 @@
 package com.fooddelivery.payments.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fooddelivery.payments.service.PaymentGatewayOrchestrator;
 import com.fooddelivery.payments.service.gateway.PaymentRequestContext;
 import org.springframework.http.ResponseEntity;
@@ -15,14 +18,13 @@ import java.util.UUID;
 import com.fooddelivery.common.enums.PaymentGateway;
 
 import org.springframework.security.access.prepost.PreAuthorize;
-import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/payments")
 @CrossOrigin(origins = "${cors.allowed-origins:*}") // Allows cross-origin requests from configured domains
 @PreAuthorize("isAuthenticated()")
-@Slf4j
 public class PaymentController {
+    private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
 
     private final PaymentGatewayOrchestrator orchestrator;
     private final com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository;

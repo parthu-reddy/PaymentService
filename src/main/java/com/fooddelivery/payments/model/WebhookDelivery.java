@@ -1,15 +1,11 @@
 package com.fooddelivery.payments.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 import com.fooddelivery.payments.model.enums.DeliveryStatus;
 import com.fooddelivery.common.enums.PaymentGateway;
 
 @Entity
 @Table(name = "webhook_deliveries")
-@Getter
-@Setter
 public class WebhookDelivery extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
@@ -32,4 +28,53 @@ public class WebhookDelivery extends BaseEntity {
 
     @Column(name = "error_log", columnDefinition = "TEXT")
     private String errorLog;
+
+    public PaymentGateway getGatewayName() {
+        return this.gatewayName;
+    }
+
+    public String getEventId() {
+        return this.eventId;
+    }
+
+    public String getEventType() {
+        return this.eventType;
+    }
+
+    public String getPayload() {
+        return this.payload;
+    }
+
+    public DeliveryStatus getProcessingStatus() {
+        return this.processingStatus;
+    }
+
+    public String getErrorLog() {
+        return this.errorLog;
+    }
+
+    public void setGatewayName(PaymentGateway gatewayName) {
+        this.gatewayName = gatewayName;
+    }
+
+    public void setEventId(String eventId) {
+        this.eventId = eventId;
+    }
+
+    public void setEventType(String eventType) {
+        this.eventType = eventType;
+    }
+
+    public void setPayload(String payload) {
+        this.payload = payload;
+    }
+
+    public void setProcessingStatus(DeliveryStatus processingStatus) {
+        this.processingStatus = processingStatus;
+    }
+
+    public void setErrorLog(String errorLog) {
+        this.errorLog = errorLog;
+    }
+
 }

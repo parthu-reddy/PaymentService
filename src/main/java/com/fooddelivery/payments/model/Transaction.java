@@ -1,16 +1,12 @@
 package com.fooddelivery.payments.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import com.fooddelivery.common.enums.TransactionStatus;
 
 @Entity
 @Table(name = "transactions")
-@Getter
-@Setter
 public class Transaction extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -44,4 +40,85 @@ public class Transaction extends BaseEntity {
 
     @Column(name = "amount_refunded", nullable = false)
     private BigDecimal amountRefunded = BigDecimal.ZERO;
+
+    public PaymentIntent getPaymentIntent() {
+        return this.paymentIntent;
+    }
+
+    public String getGatewayPaymentId() {
+        return this.gatewayPaymentId;
+    }
+
+    public BigDecimal getAmount() {
+        return this.amount;
+    }
+
+    public String getPaymentMethod() {
+        return this.paymentMethod;
+    }
+
+    public String getPaymentNetwork() {
+        return this.paymentNetwork;
+    }
+
+    public TransactionStatus getStatus() {
+        return this.status;
+    }
+
+    public String getErrorCode() {
+        return this.errorCode;
+    }
+
+    public String getErrorMessage() {
+        return this.errorMessage;
+    }
+
+    public ZonedDateTime getCapturedAt() {
+        return this.capturedAt;
+    }
+
+    public BigDecimal getAmountRefunded() {
+        return this.amountRefunded;
+    }
+
+    public void setPaymentIntent(PaymentIntent paymentIntent) {
+        this.paymentIntent = paymentIntent;
+    }
+
+    public void setGatewayPaymentId(String gatewayPaymentId) {
+        this.gatewayPaymentId = gatewayPaymentId;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public void setPaymentNetwork(String paymentNetwork) {
+        this.paymentNetwork = paymentNetwork;
+    }
+
+    public void setStatus(TransactionStatus status) {
+        this.status = status;
+    }
+
+    public void setErrorCode(String errorCode) {
+        this.errorCode = errorCode;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+
+    public void setCapturedAt(ZonedDateTime capturedAt) {
+        this.capturedAt = capturedAt;
+    }
+
+    public void setAmountRefunded(BigDecimal amountRefunded) {
+        this.amountRefunded = amountRefunded;
+    }
+
 }

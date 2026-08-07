@@ -1,5 +1,8 @@
 package com.fooddelivery.payments.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fooddelivery.common.enums.PaymentGateway;
 import com.fooddelivery.payments.controller.PaymentController;
@@ -17,11 +20,10 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
-@Slf4j
 public class PaymentMcpService {
+    private static final Logger log = LoggerFactory.getLogger(PaymentMcpService.class);
 
     private final PaymentController paymentController;
     private final WebhookController webhookController;

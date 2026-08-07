@@ -1,5 +1,8 @@
 package com.fooddelivery.payments.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fooddelivery.payments.service.PaymentGatewayOrchestrator;
 import com.fooddelivery.payments.service.WebhookProcessingService;
 import com.fooddelivery.payments.service.gateway.IPaymentGatewayStrategy;
@@ -11,12 +14,11 @@ import org.springframework.web.util.ContentCachingRequestWrapper;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
-import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/webhooks")
-@Slf4j
 public class WebhookController {
+    private static final Logger log = LoggerFactory.getLogger(WebhookController.class);
 private final WebhookProcessingService webhookProcessingService;
     private final PaymentGatewayOrchestrator orchestrator;
 
@@ -55,7 +57,7 @@ private final WebhookProcessingService webhookProcessingService;
 
     private ResponseEntity<String> processWebhook(HttpServletRequest request, PaymentGateway gateway, String signature, String timestamp, String headerEventId) {
         try {
-            logger.info("Consumed webhook event from gateway: {}", gateway);
+            log.info("Consumed webhook event from gateway: {}", gateway);
             if (signature == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing Signature");
             }
@@ -89,7 +91,7 @@ private final WebhookProcessingService webhookProcessingService;
             }
 
             if (webhookProcessingService.isEventProcessed(eventId)) {
-                logger.info("Webhook event {} already processed. Returning 200 OK.", eventId);
+                log.info("Webhook event {} already processed. Returning 200 OK.", eventId);
                 return ResponseEntity.ok("Already Processed");
             }
 
@@ -97,7 +99,7 @@ private final WebhookProcessingService webhookProcessingService;
             boolean isValid = strategy.verifyWebhookSignature(rawBody, signature, timestamp);
             
             if (!isValid) {
-                logger.error("Cryptographic verification failed for {} event", gateway);
+                log.error("Cryptographic verification failed for {} event", gateway);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Signature Validation Failed");
             }
 
@@ -105,7 +107,7 @@ private final WebhookProcessingService webhookProcessingService;
             return ResponseEntity.ok("Webhook Received and Verified");
 
         } catch (Exception e) {
-            logger.error("Critical failure during webhook ingestion", e);
+            log.error("Critical failure during webhook ingestion", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

@@ -1,16 +1,12 @@
 package com.fooddelivery.payments.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 import java.math.BigDecimal;
 import com.fooddelivery.common.enums.PaymentGateway;
 import com.fooddelivery.common.constants.PaymentIntentStatus;
 
 @Entity
 @Table(name = "payment_intents")
-@Getter
-@Setter
 public class PaymentIntent extends BaseEntity {
 
     @Column(name = "order_id", nullable = false)
@@ -35,4 +31,61 @@ public class PaymentIntent extends BaseEntity {
 
     @Column(name = "idempotency_key", nullable = false, unique = true)
     private String idempotencyKey;
+
+    public String getOrderId() {
+        return this.orderId;
+    }
+
+    public PaymentGateway getGatewayName() {
+        return this.gatewayName;
+    }
+
+    public String getGatewayOrderId() {
+        return this.gatewayOrderId;
+    }
+
+    public BigDecimal getAmount() {
+        return this.amount;
+    }
+
+    public BigDecimal getAmountRefunded() {
+        return this.amountRefunded;
+    }
+
+    public PaymentIntentStatus getStatus() {
+        return this.status;
+    }
+
+    public String getIdempotencyKey() {
+        return this.idempotencyKey;
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
+    }
+
+    public void setGatewayName(PaymentGateway gatewayName) {
+        this.gatewayName = gatewayName;
+    }
+
+    public void setGatewayOrderId(String gatewayOrderId) {
+        this.gatewayOrderId = gatewayOrderId;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public void setAmountRefunded(BigDecimal amountRefunded) {
+        this.amountRefunded = amountRefunded;
+    }
+
+    public void setStatus(PaymentIntentStatus status) {
+        this.status = status;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
+
 }

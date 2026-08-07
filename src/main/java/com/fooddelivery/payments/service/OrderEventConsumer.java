@@ -1,5 +1,8 @@
 package com.fooddelivery.payments.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -9,11 +12,10 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import com.fooddelivery.common.enums.PaymentGateway;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
-@Slf4j
 public class OrderEventConsumer {
+    private static final Logger log = LoggerFactory.getLogger(OrderEventConsumer.class);
 private final ObjectMapper objectMapper;
     private final PaymentGatewayOrchestrator orchestrator;
 

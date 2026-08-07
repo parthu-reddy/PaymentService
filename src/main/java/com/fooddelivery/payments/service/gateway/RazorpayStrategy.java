@@ -1,5 +1,8 @@
 package com.fooddelivery.payments.service.gateway;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fooddelivery.common.enums.PaymentGateway;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
@@ -11,11 +14,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 
-import lombok.extern.slf4j.Slf4j;
 
 @Service
-@Slf4j
 public class RazorpayStrategy implements IPaymentGatewayStrategy {
+    private static final Logger log = LoggerFactory.getLogger(RazorpayStrategy.class);
 
     private final RazorpayClient razorpayClient;
     private final String webhookSecret;
