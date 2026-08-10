@@ -18,8 +18,10 @@ import java.util.UUID;
 import java.time.Instant;
 import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
+import org.springframework.context.annotation.Profile;
 
 @Service
+@Profile("prod")
 public class CashfreeStrategy implements IPaymentGatewayStrategy {
 
     private final String cfClientId;
@@ -92,7 +94,35 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
 
     @Override
     public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
-        return true;
+        try {
+            ObjectNode body = objectMapper.createObjectNode();
+            body.put("refund_amount", amount);
+            body.put("refund_id", "refund_" + UUID.randomUUID().toString().substring(0, 8));
+            body.put("refund_note", reason != null ? reason : "Refund processing");
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.cashfree.com/pg/orders/" + gatewayOrderId + "/refunds"))
+                    .header("x-client-id", cfClientId)
+                    .header("x-client-secret", cfClientSecret)
+                    .header("x-api-version", "2023-08-01")
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                    .timeout(Duration.ofSeconds(10))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                org.slf4j.LoggerFactory.getLogger(CashfreeStrategy.class).info("Cashfree Refund Initiated successfully for Order: {} Amount: {}", gatewayOrderId, amount);
+                return true;
+            } else {
+                org.slf4j.LoggerFactory.getLogger(CashfreeStrategy.class).error("Cashfree refund failed. Status: {} Body: {}", response.statusCode(), response.body());
+                return false;
+            }
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(CashfreeStrategy.class).error("Cashfree refund exception: {}", e.getMessage(), e);
+            return false;
+        }
     }
 
     @Override

@@ -25,6 +25,10 @@ public class Refund extends BaseEntity {
     @Column(nullable = false)
     private RefundStatus status = RefundStatus.PENDING;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "refund_destination")
+    private com.fooddelivery.common.enums.RefundDestination refundDestination;
+
     public Transaction getTransaction() {
         return this.transaction;
     }
@@ -45,6 +49,10 @@ public class Refund extends BaseEntity {
         return this.status;
     }
 
+    public com.fooddelivery.common.enums.RefundDestination getRefundDestination() {
+        return this.refundDestination;
+    }
+
     public void setTransaction(Transaction transaction) {
         this.transaction = transaction;
     }
@@ -63,6 +71,10 @@ public class Refund extends BaseEntity {
 
     public void setStatus(RefundStatus status) {
         this.status = status;
+    }
+
+    public void setRefundDestination(com.fooddelivery.common.enums.RefundDestination refundDestination) {
+        this.refundDestination = refundDestination;
     }
 
 }

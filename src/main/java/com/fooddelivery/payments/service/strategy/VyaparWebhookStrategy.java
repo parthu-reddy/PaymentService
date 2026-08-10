@@ -27,7 +27,8 @@ public class VyaparWebhookStrategy implements WebhookHandlerStrategy {
         } else if (EVENT_PAYMENT_FAILED.equals(eventType)) {
             delegate.handleFailedPayment(gatewayOrderId, "Vyapar payment failed");
         } else if (EVENT_REFUND_SUCCESS.equals(eventType)) {
-            delegate.handleRefundSuccess(gatewayOrderId, rootNode);
+            String refundId = rootNode.path("payload").path("refund").path("entity").path("id").asText();
+            delegate.handleRefundSuccess(gatewayOrderId, refundId, rootNode);
         }
     }
 }

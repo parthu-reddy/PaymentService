@@ -131,6 +131,7 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
+    @CircuitBreaker(name = "vyaparRefund", fallbackMethod = "refundFallback")
     public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
         try {
             ObjectNode body = objectMapper.createObjectNode();
@@ -150,8 +151,13 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
             return response.statusCode() == 200;
         } catch (Exception e) {
             logger.error("Exception thrown when initiating gateway refund for sequence: {}", gatewayOrderId, e);
-            return false;
+            throw new RuntimeException("Vyapar API exception during refund", e);
         }
+    }
+
+    public boolean refundFallback(String gatewayOrderId, double amount, String reason, Throwable t) {
+        logger.error("CircuitBreaker fallback triggered for initiateRefund (order: {}, amount: {}). Reason: {}", gatewayOrderId, amount, t.getMessage());
+        return false;
     }
 
     @Override

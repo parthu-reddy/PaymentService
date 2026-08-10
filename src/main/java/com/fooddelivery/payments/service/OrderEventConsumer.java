@@ -16,12 +16,16 @@ import com.fooddelivery.common.enums.PaymentGateway;
 @Service
 public class OrderEventConsumer {
     private static final Logger log = LoggerFactory.getLogger(OrderEventConsumer.class);
-private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
     private final PaymentGatewayOrchestrator orchestrator;
+    private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
+    private final WebhookProcessingService webhookProcessingService;
 
-    public OrderEventConsumer(ObjectMapper objectMapper, PaymentGatewayOrchestrator orchestrator) {
+    public OrderEventConsumer(ObjectMapper objectMapper, PaymentGatewayOrchestrator orchestrator, io.micrometer.core.instrument.MeterRegistry meterRegistry, WebhookProcessingService webhookProcessingService) {
         this.objectMapper = objectMapper;
         this.orchestrator = orchestrator;
+        this.meterRegistry = meterRegistry;
+        this.webhookProcessingService = webhookProcessingService;
     }
 
     @RetryableTopic(
@@ -50,17 +54,26 @@ private final ObjectMapper objectMapper;
                 String gatewayOrderId = payloadNode.path("gatewayOrderId").asText(null);
                 double amountInInr = payloadNode.path("amountInInr").asDouble(0);
                 String gatewayNameStr = payloadNode.path("gatewayName").asText(null);
+                String refundDestStr = payloadNode.path("refundDestination").asText("GATEWAY");
                 
                 if (gatewayOrderId != null && amountInInr > 0 && gatewayNameStr != null) {
                     try {
                         PaymentGateway gateway = PaymentGateway.valueOf(gatewayNameStr.toUpperCase());
-                        log.info("Initiating refund for gatewayOrderId: {}, gateway: {}", gatewayOrderId, gateway);
-                        boolean success = orchestrator.initiateRefund(gateway, gatewayOrderId, amountInInr, "Order cancelled or rejected");
-                        if (success) {
-                            log.info("Refund initiated successfully for gatewayOrderId: {}", gatewayOrderId);
+                        
+                        if ("WALLET".equals(refundDestStr)) {
+                            log.info("Wallet refund requested. Bypassing gateway for order: {}", gatewayOrderId);
+                            webhookProcessingService.processWalletRefund(gatewayOrderId, amountInInr, gatewayNameStr);
                         } else {
-                            log.error("Failed to initiate refund for gatewayOrderId: {}", gatewayOrderId);
-                            throw new RuntimeException("Refund failed for gatewayOrderId: " + gatewayOrderId);
+                            log.info("Initiating refund for gatewayOrderId: {}, gateway: {}", gatewayOrderId, gateway);
+                            meterRegistry.counter("refunds.requested", "gateway", gatewayNameStr).increment();
+                            boolean success = orchestrator.initiateRefund(gateway, gatewayOrderId, amountInInr, "Order cancelled or rejected");
+                            if (success) {
+                                log.info("Refund initiated successfully for gatewayOrderId: {}", gatewayOrderId);
+                            } else {
+                                meterRegistry.counter("refunds.failed", "gateway", gatewayNameStr).increment();
+                                log.error("Failed to initiate refund for gatewayOrderId: {}", gatewayOrderId);
+                                throw new RuntimeException("Refund failed for gatewayOrderId: " + gatewayOrderId);
+                            }
                         }
                     } catch (IllegalArgumentException e) {
                         log.error("Invalid gateway name in refund requested event: {}", gatewayNameStr);

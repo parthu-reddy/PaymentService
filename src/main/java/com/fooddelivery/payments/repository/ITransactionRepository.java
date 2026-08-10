@@ -11,4 +11,8 @@ import java.util.Optional;
 public interface ITransactionRepository extends JpaRepository<Transaction, UUID> {
     Optional<Transaction> findByGatewayPaymentId(String gatewayPaymentId);
     Optional<Transaction> findFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(UUID paymentIntentId, com.fooddelivery.common.enums.TransactionStatus status);
+    
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("SELECT t FROM Transaction t WHERE t.paymentIntent.id = :paymentIntentId AND t.status = :status ORDER BY t.createdAt DESC LIMIT 1")
+    Optional<Transaction> findLockedFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(@org.springframework.data.repository.query.Param("paymentIntentId") UUID paymentIntentId, @org.springframework.data.repository.query.Param("status") com.fooddelivery.common.enums.TransactionStatus status);
 }

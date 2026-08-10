@@ -8,6 +8,7 @@ import com.fooddelivery.common.constants.PaymentIntentStatus;
 import com.fooddelivery.payments.repository.IPaymentIntentRepository;
 import com.fooddelivery.payments.repository.ITransactionRepository;
 import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
+import com.fooddelivery.payments.repository.IRefundRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import com.fooddelivery.common.outbox.repository.OutboxEventRepository;
@@ -21,6 +22,8 @@ import org.mockito.Captor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.transaction.TransactionStatus;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Counter;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -40,6 +43,8 @@ public class WebhookProcessingServiceTest {
     @Mock
     private ITransactionRepository transactionRepository;
     @Mock
+    private IRefundRepository refundRepository;
+    @Mock
     private ObjectMapper objectMapper;
     @Mock
     private OutboxEventRepository outboxEventRepository;
@@ -49,6 +54,12 @@ public class WebhookProcessingServiceTest {
 
     @Mock
     private TransactionTemplate transactionTemplate;
+
+    @Mock
+    private MeterRegistry meterRegistry;
+    
+    @Mock
+    private Counter counter;
 
     private WebhookProcessingService service;
 
@@ -71,11 +82,15 @@ public class WebhookProcessingServiceTest {
                 webhookDeliveryRepository,
                 paymentIntentRepository,
                 transactionRepository,
+                refundRepository,
                 objectMapper,
                 outboxEventRepository,
                 transactionTemplate,
                 stringRedisTemplate,
-                java.util.Collections.singletonList(vyaparStub));
+                java.util.Collections.singletonList(vyaparStub),
+                meterRegistry);
+
+        lenient().when(meterRegistry.counter(anyString(), anyString(), anyString())).thenReturn(counter);
 
         @SuppressWarnings("unchecked")
         org.springframework.data.redis.core.ValueOperations<String, String> valOps = mock(org.springframework.data.redis.core.ValueOperations.class);
@@ -140,5 +155,67 @@ public class WebhookProcessingServiceTest {
         service.processWebhookAsync("evt_error_123", com.fooddelivery.common.enums.PaymentGateway.VYAPAR, rawBody);
 
         verify(stringRedisTemplate).delete("webhook:payment:evt_error_123");
+    }
+
+    @Test
+    void testHandleRefundSuccess_FullRefund() {
+        String gatewayOrderId = "order_123";
+        String gatewayRefundId = "refund_123";
+        
+        PaymentIntent intent = new PaymentIntent();
+        intent.setId(UUID.randomUUID());
+        intent.setOrderId(UUID.randomUUID().toString());
+        intent.setGatewayOrderId(gatewayOrderId);
+        intent.setAmount(new BigDecimal("100.00"));
+        intent.setGatewayName(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY);
+
+        com.fooddelivery.payments.model.Transaction tx = new com.fooddelivery.payments.model.Transaction();
+        tx.setId(UUID.randomUUID());
+        
+        when(paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId)).thenReturn(Optional.of(intent));
+        when(refundRepository.findByGatewayRefundId(gatewayRefundId)).thenReturn(Optional.empty());
+        when(transactionRepository.findLockedFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(eq(intent.getId()), any())).thenReturn(Optional.of(tx));
+
+        com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("amount_refunded", "100.00");
+
+        service.handleRefundSuccess(gatewayOrderId, gatewayRefundId, payload);
+
+        assertEquals(new BigDecimal("100.00"), intent.getAmountRefunded());
+        assertEquals(PaymentIntentStatus.REFUNDED, intent.getStatus());
+        verify(paymentIntentRepository).save(intent);
+        verify(refundRepository).save(any());
+        verify(outboxEventRepository).save(any());
+    }
+
+    @Test
+    void testHandleRefundSuccess_PartialRefund_CumulativeTracking() {
+        String gatewayOrderId = "order_123";
+        String gatewayRefundId = "refund_123";
+        
+        PaymentIntent intent = new PaymentIntent();
+        intent.setId(UUID.randomUUID());
+        intent.setOrderId(UUID.randomUUID().toString());
+        intent.setGatewayOrderId(gatewayOrderId);
+        intent.setAmount(new BigDecimal("100.00"));
+        intent.setAmountRefunded(new BigDecimal("40.00"));
+        intent.setGatewayName(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY);
+
+        com.fooddelivery.payments.model.Transaction tx = new com.fooddelivery.payments.model.Transaction();
+        tx.setId(UUID.randomUUID());
+        tx.setAmountRefunded(new BigDecimal("40.00"));
+        
+        when(paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId)).thenReturn(Optional.of(intent));
+        when(refundRepository.findByGatewayRefundId(gatewayRefundId)).thenReturn(Optional.empty());
+        when(transactionRepository.findLockedFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(eq(intent.getId()), any())).thenReturn(Optional.of(tx));
+
+        com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("amount_refunded", "30.00");
+
+        service.handleRefundSuccess(gatewayOrderId, gatewayRefundId, payload);
+
+        assertEquals(new BigDecimal("70.00"), intent.getAmountRefunded());
+        assertEquals(PaymentIntentStatus.PARTIALLY_REFUNDED, intent.getStatus());
+        assertEquals(new BigDecimal("70.00"), tx.getAmountRefunded());
     }
 }

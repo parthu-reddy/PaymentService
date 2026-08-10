@@ -36,6 +36,7 @@ public class PaymentGatewayOrchestrator {
         return strategy;
     }
 
+    @io.micrometer.core.annotation.Timed(value = "payment.gateway.order.create", description = "Time taken to create an order at gateway")
     public String createOrder(PaymentGateway gatewayName, PaymentRequestContext context) {
         log.info("Creating order using gateway: {}", gatewayName);
         try {
@@ -48,6 +49,7 @@ public class PaymentGatewayOrchestrator {
         }
     }
 
+    @io.micrometer.core.annotation.Timed(value = "payment.gateway.refund.initiate", description = "Time taken to initiate refund at gateway")
     public boolean initiateRefund(PaymentGateway gatewayName, String gatewayOrderId, double amount, String reason) {
         log.info("Initiating refund for order: {} using gateway: {}", gatewayOrderId, gatewayName);
         try {
