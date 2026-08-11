@@ -218,4 +218,35 @@ public class WebhookProcessingServiceTest {
         assertEquals(PaymentIntentStatus.PARTIALLY_REFUNDED, intent.getStatus());
         assertEquals(new BigDecimal("70.00"), tx.getAmountRefunded());
     }
+    @Test
+    void testHandleRefundSuccess_CumulativePartialRefund_ReachesFull() {
+        String gatewayOrderId = "order_123";
+        String gatewayRefundId = "refund_123";
+        
+        PaymentIntent intent = new PaymentIntent();
+        intent.setId(UUID.randomUUID());
+        intent.setOrderId(UUID.randomUUID().toString());
+        intent.setGatewayOrderId(gatewayOrderId);
+        intent.setAmount(new BigDecimal("100.00"));
+        intent.setAmountRefunded(new BigDecimal("60.00"));
+        intent.setGatewayName(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY);
+
+        com.fooddelivery.payments.model.Transaction tx = new com.fooddelivery.payments.model.Transaction();
+        tx.setId(UUID.randomUUID());
+        tx.setAmountRefunded(new BigDecimal("60.00"));
+        
+        when(paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId)).thenReturn(Optional.of(intent));
+        when(refundRepository.findByGatewayRefundId(gatewayRefundId)).thenReturn(Optional.empty());
+        when(transactionRepository.findLockedFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(eq(intent.getId()), any())).thenReturn(Optional.of(tx));
+
+        com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("amount_refunded", "40.00");
+
+        service.handleRefundSuccess(gatewayOrderId, gatewayRefundId, payload);
+
+        assertEquals(new BigDecimal("100.00"), intent.getAmountRefunded());
+        // Status should transition to REFUNDED because cumulative amount == total amount
+        assertEquals(PaymentIntentStatus.REFUNDED, intent.getStatus());
+        assertEquals(new BigDecimal("100.00"), tx.getAmountRefunded());
+    }
 }
