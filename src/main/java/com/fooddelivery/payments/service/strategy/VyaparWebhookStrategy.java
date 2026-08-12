@@ -28,7 +28,12 @@ public class VyaparWebhookStrategy implements WebhookHandlerStrategy {
             delegate.handleFailedPayment(gatewayOrderId, "Vyapar payment failed");
         } else if (EVENT_REFUND_SUCCESS.equals(eventType)) {
             String refundId = rootNode.path("payload").path("refund").path("entity").path("id").asText();
-            delegate.handleRefundSuccess(gatewayOrderId, refundId, rootNode);
+            double amount = rootNode.path("payload").path("refund").path("entity").path("amount").asDouble(0);
+            
+            com.fasterxml.jackson.databind.node.ObjectNode syntheticPayload = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+            syntheticPayload.put("amount_refunded", amount);
+            
+            delegate.handleRefundSuccess(gatewayOrderId, refundId, syntheticPayload);
         }
     }
 }

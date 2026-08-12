@@ -479,13 +479,13 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                     .build();
 
             com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(refundEvent);
-            payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.REFUND_GENERATED.name());
+            payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED.name());
 
             com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                     .id(java.util.UUID.randomUUID())
                     .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                     .aggregateId(intent.getOrderId().toString())
-                    .eventType(com.fooddelivery.common.constants.EventType.REFUND_GENERATED)
+                    .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED)
                     .payload(objectMapper.writeValueAsString(payloadNode))
                     .createdAt(java.time.LocalDateTime.now())
                     .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
