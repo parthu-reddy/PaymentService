@@ -23,8 +23,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RequestMapping("/api/v1/payments")
 @CrossOrigin(origins = "${cors.allowed-origins:*}") // Allows cross-origin requests from configured domains
 @PreAuthorize("isAuthenticated()")
+@lombok.extern.slf4j.Slf4j
 public class PaymentController {
-    private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
 
     private final PaymentGatewayOrchestrator orchestrator;
     private final com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository;

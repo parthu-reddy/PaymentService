@@ -15,9 +15,8 @@ import java.util.concurrent.Executor;
 @Configuration
 @EnableAsync
 @ConfigurationProperties(prefix = "spring.task.execution.pool")
+@lombok.extern.slf4j.Slf4j
 public class AsyncConfiguration implements AsyncConfigurer {
-
-    private static final Logger logger = LoggerFactory.getLogger(AsyncConfiguration.class);
 
     private int coreSize = 8;
     private int maxSize = 50;
@@ -42,7 +41,7 @@ public class AsyncConfiguration implements AsyncConfigurer {
 
     @Override
     public Executor getAsyncExecutor() {
-        logger.info("Initializing Async Task Executor with coreSize={}, maxSize={}, queueCapacity={}",
+        log.info("Initializing Async Task Executor with coreSize={}, maxSize={}, queueCapacity={}",
                 coreSize, maxSize, queueCapacity);
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(coreSize);

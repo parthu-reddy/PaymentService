@@ -22,8 +22,8 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class PaymentMcpService {
-    private static final Logger log = LoggerFactory.getLogger(PaymentMcpService.class);
 
     private final PaymentController paymentController;
     private final WebhookController webhookController;

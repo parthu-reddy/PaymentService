@@ -14,9 +14,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class WebhookDlqJob {
-
-    private static final Logger logger = LoggerFactory.getLogger(WebhookDlqJob.class);
 
     private final IWebhookDeliveryRepository webhookDeliveryRepository;
     private final WebhookProcessingService webhookProcessingService;
@@ -39,7 +38,7 @@ public class WebhookDlqJob {
             return;
         }
 
-        logger.info("Starting DLQ processing job for failed webhooks");
+        log.info("Starting DLQ processing job for failed webhooks");
         
         try {
             // Find webhooks that failed and are older than 5 minutes (to allow DB to settle)
@@ -50,16 +49,16 @@ public class WebhookDlqJob {
 
             for (WebhookDelivery delivery : failedDeliveries) {
                 try {
-                    logger.info("Attempting to reprocess failed webhook event: {}", delivery.getEventId());
+                    log.info("Attempting to reprocess failed webhook event: {}", delivery.getEventId());
                     webhookProcessingService.retryWebhook(delivery);
                 } catch (Exception e) {
-                    logger.error("DLQ retry failed for event: {}, marking as DEAD_LETTER", delivery.getEventId(), e);
+                    log.error("DLQ retry failed for event: {}, marking as DEAD_LETTER", delivery.getEventId(), e);
                     delivery.setProcessingStatus(DeliveryStatus.DEAD_LETTER);
                     webhookDeliveryRepository.save(delivery);
                 }
             }
             
-            logger.info("Completed DLQ processing job");
+            log.info("Completed DLQ processing job");
         } finally {
             redisTemplate.delete(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_PROCESS_WEBHOOK_DLQ);
         }

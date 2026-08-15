@@ -14,9 +14,9 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/internal/admin/payments/dlq")
+@lombok.extern.slf4j.Slf4j
 public class AdminDlqController {
-    private static final Logger log = LoggerFactory.getLogger(AdminDlqController.class);
-    
+
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 

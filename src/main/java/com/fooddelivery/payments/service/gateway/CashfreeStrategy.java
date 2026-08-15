@@ -19,9 +19,11 @@ import java.time.Instant;
 import java.security.MessageDigest;
 import java.nio.charset.StandardCharsets;
 import org.springframework.context.annotation.Profile;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 
 @Service
 @Profile("prod")
+@lombok.extern.slf4j.Slf4j
 public class CashfreeStrategy implements IPaymentGatewayStrategy {
 
     private final String cfClientId;
@@ -45,6 +47,7 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
+    @CircuitBreaker(name = "cashfreeGateway", fallbackMethod = "fallbackCreateOrder")
     public String createOrder(PaymentRequestContext context) {
         try {
             ObjectNode customer = objectMapper.createObjectNode();
@@ -73,6 +76,11 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
         }
     }
 
+    public String fallbackCreateOrder(PaymentRequestContext context, Throwable t) {
+        log.error("Cashfree Gateway is unavailable, circuit breaker tripped: {}", t.getMessage());
+        throw new RuntimeException("503 SERVICE UNAVAILABLE: Cashfree Gateway is currently unreachable.");
+    }
+
     @Override
     public boolean verifyWebhookSignature(String payload, String signature, String timestamp) {
         try {
@@ -93,6 +101,7 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
+    @CircuitBreaker(name = "cashfreeRefund", fallbackMethod = "refundFallback")
     public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
         try {
             ObjectNode body = objectMapper.createObjectNode();
@@ -113,16 +122,21 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                org.slf4j.LoggerFactory.getLogger(CashfreeStrategy.class).info("Cashfree Refund Initiated successfully for Order: {} Amount: {}", gatewayOrderId, amount);
+                log.info("Cashfree Refund Initiated successfully for Order: {} Amount: {}", gatewayOrderId, amount);
                 return true;
             } else {
-                org.slf4j.LoggerFactory.getLogger(CashfreeStrategy.class).error("Cashfree refund failed. Status: {} Body: {}", response.statusCode(), response.body());
+                log.error("Cashfree refund failed. Status: {} Body: {}", response.statusCode(), response.body());
                 return false;
             }
         } catch (Exception e) {
-            org.slf4j.LoggerFactory.getLogger(CashfreeStrategy.class).error("Cashfree refund exception: {}", e.getMessage(), e);
+            log.error("Cashfree refund exception: {}", e.getMessage(), e);
             return false;
         }
+    }
+
+    public boolean refundFallback(String gatewayOrderId, double amount, String reason, Throwable t) {
+        log.error("CircuitBreaker fallback triggered for initiateRefund (order: {}, amount: {}). Reason: {}", gatewayOrderId, amount, t.getMessage());
+        return false;
     }
 
     @Override

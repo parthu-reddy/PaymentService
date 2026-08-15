@@ -35,8 +35,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class WebhookProcessingService implements PaymentActionDelegate {
-    private static final Logger log = LoggerFactory.getLogger(WebhookProcessingService.class);
+
 private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
     private static final String LOCK_VALUE = "locked";
     private static final String DEFAULT_EVENT_TYPE = "UNKNOWN";

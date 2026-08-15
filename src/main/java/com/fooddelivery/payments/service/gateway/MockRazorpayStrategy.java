@@ -20,10 +20,9 @@ import jakarta.annotation.PreDestroy;
 
 @Service
 @Profile({"debug", "dev", "default", "test", "local"})
+@lombok.extern.slf4j.Slf4j
 public class MockRazorpayStrategy implements IPaymentGatewayStrategy {
 
-    private static final Logger logger = LoggerFactory.getLogger(MockRazorpayStrategy.class);
-    
     @Value("${razorpay.webhook.secret:test_rzp_webhook_secret}")
     private String webhookSecret;
     
@@ -49,16 +48,16 @@ public class MockRazorpayStrategy implements IPaymentGatewayStrategy {
     @Override
     public String createOrder(PaymentRequestContext context) {
         String gatewayOrderId = "mock_rzp_txn_" + context.getInternalOrderId();
-        logger.info("[DEBUG PROFILE] Mocking Razorpay Gateway create order for internal order: {}", context.getInternalOrderId());
+        log.info("[DEBUG PROFILE] Mocking Razorpay Gateway create order for internal order: {}", context.getInternalOrderId());
         
         scheduler.schedule(() -> {
             try {
-                logger.info("MockRazorpayStrategy scheduled task started for gatewayOrderId: {}", gatewayOrderId);
-                logger.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
+                log.info("MockRazorpayStrategy scheduled task started for gatewayOrderId: {}", gatewayOrderId);
+                log.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
                 webhookService.handleSuccessfulPayment(gatewayOrderId);
-                logger.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
+                log.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
             } catch (Throwable e) {
-                logger.error("Error auto-triggering payment success in MockRazorpayStrategy task", e);
+                log.error("Error auto-triggering payment success in MockRazorpayStrategy task", e);
             }
         }, 2, TimeUnit.SECONDS);
 
@@ -72,21 +71,21 @@ public class MockRazorpayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
-        logger.info("[DEBUG PROFILE] Mocking Razorpay Gateway initiate refund for gateway order: {}", gatewayOrderId);
+        log.info("[DEBUG PROFILE] Mocking Razorpay Gateway initiate refund for gateway order: {}", gatewayOrderId);
         
         scheduler.schedule(() -> {
             try {
-                logger.info("MockRazorpayStrategy refund scheduled task started for gatewayOrderId: {}", gatewayOrderId);
+                log.info("MockRazorpayStrategy refund scheduled task started for gatewayOrderId: {}", gatewayOrderId);
                 
                 ObjectNode payload = objectMapper.createObjectNode();
                 payload.put("amount_refunded", amount);
                 
                 String mockRefundId = "mock_rfnd_" + java.util.UUID.randomUUID().toString().substring(0, 8);
-                logger.info("Calling webhookService.handleRefundSuccess for gatewayOrderId: {} with refundId: {}", gatewayOrderId, mockRefundId);
+                log.info("Calling webhookService.handleRefundSuccess for gatewayOrderId: {} with refundId: {}", gatewayOrderId, mockRefundId);
                 webhookService.handleRefundSuccess(gatewayOrderId, mockRefundId, payload);
-                logger.info("Successfully called webhookService.handleRefundSuccess for gatewayOrderId: {}", gatewayOrderId);
+                log.info("Successfully called webhookService.handleRefundSuccess for gatewayOrderId: {}", gatewayOrderId);
             } catch (Throwable e) {
-                logger.error("Error auto-triggering refund success in MockRazorpayStrategy task", e);
+                log.error("Error auto-triggering refund success in MockRazorpayStrategy task", e);
             }
         }, 2, TimeUnit.SECONDS);
 

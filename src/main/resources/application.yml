@@ -1,5 +1,44 @@
 spring:
+  kafka:
+    listener:
+      observation-enabled: true
+    template:
+      observation-enabled: true
   application:
     name: payment-service
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+    instances:
+      gatewayCB:
+        baseConfig: default
+      vyaparRefund:
+        baseConfig: default
+      razorpayGateway:
+        baseConfig: default
+      razorpayRefund:
+        baseConfig: default
+      cashfreeGateway:
+        baseConfig: default
+      cashfreeRefund:
+        baseConfig: default
+
+
+management:
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces

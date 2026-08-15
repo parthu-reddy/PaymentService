@@ -14,8 +14,9 @@ import org.springframework.stereotype.Service;
 import com.fooddelivery.common.enums.PaymentGateway;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class OrderEventConsumer {
-    private static final Logger log = LoggerFactory.getLogger(OrderEventConsumer.class);
+
     private final ObjectMapper objectMapper;
     private final PaymentGatewayOrchestrator orchestrator;
     private final io.micrometer.core.instrument.MeterRegistry meterRegistry;

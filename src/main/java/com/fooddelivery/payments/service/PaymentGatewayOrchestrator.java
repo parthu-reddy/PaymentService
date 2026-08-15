@@ -15,8 +15,8 @@ import java.util.stream.Collectors;
 import com.fooddelivery.common.enums.PaymentGateway;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class PaymentGatewayOrchestrator {
-    private static final Logger log = LoggerFactory.getLogger(PaymentGatewayOrchestrator.class);
 
     private final Map<PaymentGateway, IPaymentGatewayStrategy> strategies;
 

@@ -15,11 +15,12 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 
 import org.springframework.context.annotation.Profile;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 
 @Service
 @Profile("prod")
+@lombok.extern.slf4j.Slf4j
 public class RazorpayStrategy implements IPaymentGatewayStrategy {
-    private static final Logger log = LoggerFactory.getLogger(RazorpayStrategy.class);
 
     private final RazorpayClient razorpayClient;
     private final String webhookSecret;
@@ -39,6 +40,7 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
+    @CircuitBreaker(name = "razorpayGateway", fallbackMethod = "fallbackCreateOrder")
     public String createOrder(PaymentRequestContext context) {
         try {
             // Razorpay processes amounts in the smallest currency subunit (paise)
@@ -62,6 +64,11 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
         }
     }
 
+    public String fallbackCreateOrder(PaymentRequestContext context, Throwable t) {
+        log.error("Razorpay Gateway is unavailable, circuit breaker tripped: {}", t.getMessage());
+        throw new RuntimeException("503 SERVICE UNAVAILABLE: Razorpay Gateway is currently unreachable.");
+    }
+
     @Override
     public boolean verifyWebhookSignature(String payload, String signature, String timestamp) {
         try {
@@ -72,6 +79,7 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
+    @CircuitBreaker(name = "razorpayRefund", fallbackMethod = "refundFallback")
     public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
         try {
             // Amount must be in paise (amount * 100)
@@ -110,6 +118,11 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
             log.error("Razorpay refund failed for gatewayOrderId: {}. Error: {}", gatewayOrderId, e.getMessage(), e);
             return false;
         }
+    }
+
+    public boolean refundFallback(String gatewayOrderId, double amount, String reason, Throwable t) {
+        log.error("CircuitBreaker fallback triggered for initiateRefund (order: {}, amount: {}). Reason: {}", gatewayOrderId, amount, t.getMessage());
+        return false;
     }
 
     @Override

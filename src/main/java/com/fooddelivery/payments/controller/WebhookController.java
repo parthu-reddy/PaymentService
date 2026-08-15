@@ -17,8 +17,9 @@ import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/v1/webhooks")
+@lombok.extern.slf4j.Slf4j
 public class WebhookController {
-    private static final Logger log = LoggerFactory.getLogger(WebhookController.class);
+
 private final WebhookProcessingService webhookProcessingService;
     private final PaymentGatewayOrchestrator orchestrator;
 

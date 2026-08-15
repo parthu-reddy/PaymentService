@@ -24,9 +24,8 @@ import org.springframework.context.annotation.Profile;
 
 @Service
 @Profile("prod")
+@lombok.extern.slf4j.Slf4j
 public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
-
-    private static final Logger logger = LoggerFactory.getLogger(VyaparGatewayStrategy.class);
 
     private final String apiKey;
     private final String baseUrl;
@@ -92,17 +91,17 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
                 }
                 return jsonResponse.get("intent").asText(); // Returning intent if order_id is missing
             } else {
-                logger.error("Failed to execute VyaparGateway payload: {}", response.body());
+                log.error("Failed to execute VyaparGateway payload: {}", response.body());
                 throw new RuntimeException("Gateway initialization error status " + response.statusCode());
             }
         } catch (Exception e) {
-            logger.error("Error creating payment intent for internal order: {}", context.getInternalOrderId(), e);
+            log.error("Error creating payment intent for internal order: {}", context.getInternalOrderId(), e);
             throw new RuntimeException("Vyapar payment service down", e);
         }
     }
     
     public String fallbackCreateOrder(PaymentRequestContext context, Throwable t) {
-        logger.error("Vyapar Gateway is unavailable, circuit breaker tripped or call failed: {}", t.getMessage());
+        log.error("Vyapar Gateway is unavailable, circuit breaker tripped or call failed: {}", t.getMessage());
         throw new RuntimeException("503 SERVICE UNAVAILABLE: Payment Gateway is currently unreachable.");
     }
 
@@ -150,20 +149,20 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             return response.statusCode() == 200;
         } catch (Exception e) {
-            logger.error("Exception thrown when initiating gateway refund for sequence: {}", gatewayOrderId, e);
+            log.error("Exception thrown when initiating gateway refund for sequence: {}", gatewayOrderId, e);
             throw new RuntimeException("Vyapar API exception during refund", e);
         }
     }
 
     public boolean refundFallback(String gatewayOrderId, double amount, String reason, Throwable t) {
-        logger.error("CircuitBreaker fallback triggered for initiateRefund (order: {}, amount: {}). Reason: {}", gatewayOrderId, amount, t.getMessage());
+        log.error("CircuitBreaker fallback triggered for initiateRefund (order: {}, amount: {}). Reason: {}", gatewayOrderId, amount, t.getMessage());
         return false;
     }
 
     @Override
     @CircuitBreaker(name = "gatewayCB", fallbackMethod = "fallbackVerifyStatus")
     public com.fooddelivery.common.constants.PaymentIntentStatus verifyStatus(String gatewayOrderId) {
-        logger.info("Calling Vyapar API to verify status for order: {}", gatewayOrderId);
+        log.info("Calling Vyapar API to verify status for order: {}", gatewayOrderId);
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/check_order_status"))
@@ -183,24 +182,24 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
                     case "PENDING", "CREATED" -> com.fooddelivery.common.constants.PaymentIntentStatus.PENDING;
                     case "FAILED", "CANCELLED", "EXPIRED" -> com.fooddelivery.common.constants.PaymentIntentStatus.FAILED;
                     default -> {
-                        logger.warn("Unknown payment status '{}' for order {}", status, gatewayOrderId);
+                        log.warn("Unknown payment status '{}' for order {}", status, gatewayOrderId);
                         throw new IllegalStateException("Unknown payment status from gateway: " + status);
                     }
                 };
             } else {
-                logger.error("Vyapar status check returned non-200: {} body={}", response.statusCode(), response.body());
+                log.error("Vyapar status check returned non-200: {} body={}", response.statusCode(), response.body());
                 throw new RuntimeException("Gateway status check failed with status " + response.statusCode());
             }
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
-            logger.error("Error verifying payment status for order: {}", gatewayOrderId, e);
+            log.error("Error verifying payment status for order: {}", gatewayOrderId, e);
             throw new RuntimeException("Vyapar payment status verification failed", e);
         }
     }
 
     public com.fooddelivery.common.constants.PaymentIntentStatus fallbackVerifyStatus(String gatewayOrderId, Throwable t) {
-        logger.error("Vyapar status check unavailable, circuit breaker tripped for order {}: {}", gatewayOrderId, t.getMessage());
+        log.error("Vyapar status check unavailable, circuit breaker tripped for order {}: {}", gatewayOrderId, t.getMessage());
         throw new IllegalStateException("Payment status verification is currently unavailable. Cannot confirm payment.");
     }
 }

@@ -15,9 +15,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class PaymentReconciliationJob {
-
-    private static final Logger logger = LoggerFactory.getLogger(PaymentReconciliationJob.class);
 
     private final IPaymentIntentRepository paymentIntentRepository;
     private final PaymentGatewayOrchestrator orchestrator;
@@ -42,7 +41,7 @@ public class PaymentReconciliationJob {
             return;
         }
 
-        logger.info("Starting Payment Reconciliation Job");
+        log.info("Starting Payment Reconciliation Job");
 
         // Find intents stuck in INITIATED for more than 10 minutes
         List<PaymentIntent> stuckIntents = paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(
@@ -52,7 +51,7 @@ public class PaymentReconciliationJob {
 
         for (PaymentIntent intent : stuckIntents) {
             try {
-                logger.info("Reconciling stuck payment intent: {}", intent.getId());
+                log.info("Reconciling stuck payment intent: {}", intent.getId());
                 PaymentIntentStatus status = orchestrator.getStrategy(intent.getGatewayName())
                         .verifyStatus(intent.getGatewayOrderId());
 
@@ -60,16 +59,16 @@ public class PaymentReconciliationJob {
                     status == PaymentIntentStatus.CAPTURED || 
                     status == PaymentIntentStatus.PAID) {
                     
-                    logger.info("Payment intent {} was actually successful on gateway. Triggering fulfillment.", intent.getId());
+                    log.info("Payment intent {} was actually successful on gateway. Triggering fulfillment.", intent.getId());
                     webhookProcessingService.handleSuccessfulPayment(intent.getGatewayOrderId());
                 } else if (status == PaymentIntentStatus.FAILED) {
                     webhookProcessingService.handleFailedPayment(intent.getGatewayOrderId(), "Reconciliation determined payment failed");
-                    logger.info("Reconciled payment intent to FAILED: {}", intent.getId());
+                    log.info("Reconciled payment intent to FAILED: {}", intent.getId());
                 }
             } catch (Exception e) {
-                logger.error("Failed to reconcile intent: {}", intent.getId(), e);
+                log.error("Failed to reconcile intent: {}", intent.getId(), e);
             }
         }
-        logger.info("Completed Payment Reconciliation Job");
+        log.info("Completed Payment Reconciliation Job");
     }
 }

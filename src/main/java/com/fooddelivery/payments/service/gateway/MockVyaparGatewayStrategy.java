@@ -17,10 +17,9 @@ import jakarta.annotation.PreDestroy;
 
 @Service
 @Profile({"debug", "dev", "default", "test"})
+@lombok.extern.slf4j.Slf4j
 public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
-    private static final Logger logger = LoggerFactory.getLogger(MockVyaparGatewayStrategy.class);
-    
     @Value("${vyapargateway.webhook.secret:test_vyapar_webhook_secret}")
     private String webhookSecret;
     
@@ -43,16 +42,16 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
     @Override
     public String createOrder(PaymentRequestContext context) {
         String gatewayOrderId = "mock_vyapar_txn_" + context.getInternalOrderId();
-        logger.info("[DEBUG PROFILE] Mocking Vyapar Gateway create order for internal order: {}", context.getInternalOrderId());
+        log.info("[DEBUG PROFILE] Mocking Vyapar Gateway create order for internal order: {}", context.getInternalOrderId());
         
         scheduler.schedule(() -> {
             try {
-                logger.info("MockVyaparGatewayStrategy scheduled task started for gatewayOrderId: {}", gatewayOrderId);
-                logger.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
+                log.info("MockVyaparGatewayStrategy scheduled task started for gatewayOrderId: {}", gatewayOrderId);
+                log.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
                 webhookService.handleSuccessfulPayment(gatewayOrderId);
-                logger.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
+                log.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
             } catch (Throwable e) {
-                logger.error("Error auto-triggering payment success in MockVyaparGatewayStrategy task", e);
+                log.error("Error auto-triggering payment success in MockVyaparGatewayStrategy task", e);
             }
         }, 2, TimeUnit.SECONDS);
 
@@ -85,21 +84,21 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
-        logger.info("[DEBUG PROFILE] Mocking Vyapar Gateway initiate refund for gateway order: {}", gatewayOrderId);
+        log.info("[DEBUG PROFILE] Mocking Vyapar Gateway initiate refund for gateway order: {}", gatewayOrderId);
         
         scheduler.schedule(() -> {
             try {
-                logger.info("MockVyaparGatewayStrategy refund scheduled task started for gatewayOrderId: {}", gatewayOrderId);
+                log.info("MockVyaparGatewayStrategy refund scheduled task started for gatewayOrderId: {}", gatewayOrderId);
                 
                 com.fasterxml.jackson.databind.node.ObjectNode payload = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
                 payload.put("amount_refunded", amount);
                 
                 String mockRefundId = "mock_rfnd_" + java.util.UUID.randomUUID().toString().substring(0, 8);
-                logger.info("Calling webhookService.handleRefundSuccess for gatewayOrderId: {} with refundId: {}", gatewayOrderId, mockRefundId);
+                log.info("Calling webhookService.handleRefundSuccess for gatewayOrderId: {} with refundId: {}", gatewayOrderId, mockRefundId);
                 webhookService.handleRefundSuccess(gatewayOrderId, mockRefundId, payload);
-                logger.info("Successfully called webhookService.handleRefundSuccess for gatewayOrderId: {}", gatewayOrderId);
+                log.info("Successfully called webhookService.handleRefundSuccess for gatewayOrderId: {}", gatewayOrderId);
             } catch (Throwable e) {
-                logger.error("Error auto-triggering refund success in MockVyaparGatewayStrategy task", e);
+                log.error("Error auto-triggering refund success in MockVyaparGatewayStrategy task", e);
             }
         }, 2, TimeUnit.SECONDS);
 
