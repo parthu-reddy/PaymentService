@@ -37,7 +37,7 @@ public class PaymentController {
 
     public static class CreateOrderRequest {
         @NotNull(message = "internalOrderId cannot be null")
-        @Pattern(regexp = "^([a-zA-Z0-9_]+_)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$", message = "internalOrderId must be a valid UUID, optionally prefixed with a string like WALLET_")
+        @Pattern(regexp = "^([a-zA-Z0-9_-]+_)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$", message = "internalOrderId must be a valid UUID, optionally prefixed with a string like WALLET_")
         public String internalOrderId;
 
         @NotNull(message = "amountInInr cannot be null")
