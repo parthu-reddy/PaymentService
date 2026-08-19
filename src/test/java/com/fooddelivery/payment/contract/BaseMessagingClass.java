@@ -15,10 +15,10 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.context.annotation.Bean;
 
-@SpringBootTest(classes = {com.fooddelivery.payments.PaymentServiceApplication.class, BaseMessagingClass.TestConfig.class}, webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
+@SpringBootTest(classes = BaseMessagingClass.TestConfig.class, webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
     "spring.kafka.consumer.auto-offset-reset=earliest"
 })
-@org.springframework.test.context.ActiveProfiles("test")
+@org.springframework.test.context.ActiveProfiles("contract-test")
 @AutoConfigureMessageVerifier
 @EmbeddedKafka(partitions = 1, topics = {"payment-events"})
 public abstract class BaseMessagingClass {
@@ -37,7 +37,14 @@ public abstract class BaseMessagingClass {
     @org.springframework.boot.test.mock.mockito.MockBean
     private com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository;
 
-    @org.springframework.boot.test.context.TestConfiguration
+    @org.springframework.boot.SpringBootConfiguration
+    @org.springframework.boot.autoconfigure.EnableAutoConfiguration(exclude = {
+            org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
+            org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
+            org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration.class,
+            org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration.class,
+            org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration.class
+    })
     static class TestConfig {
         @Bean
         public KafkaMessageVerifier kafkaMessageVerifier() {
@@ -48,18 +55,44 @@ public abstract class BaseMessagingClass {
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
 
-    public void firePaymentSuccess() {
-        String payload = """
-{
-  "eventId": "pay-111",
-  "type": "PAYMENT_SUCCESS",
-  "payload": {
-    "orderId": 1001,
-    "paymentId": "txn-999",
-    "amount": 15.50
-  }
-}""";
-        kafkaTemplate.send("payment-events", payload);
+    @Autowired
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    /** Mirrors WebhookProcessingService: real PaymentSucceededEvent tree + eventType field. */
+    public void firePaymentSuccess() throws Exception {
+        String orderId = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+        com.fooddelivery.common.event.PaymentSucceededEvent event =
+                new com.fooddelivery.common.event.PaymentSucceededEvent(
+                        orderId, "order_RZP123456", new java.math.BigDecimal("250.00"), "RAZORPAY");
+        com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
+        payloadNode.put("eventType",
+                com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED.name());
+        publishViaOutbox(com.fooddelivery.common.constants.AggregateType.PAYMENT, orderId,
+                com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED, payloadNode);
+    }
+
+
+    /** Drives the real OutboxProcessor: real topic routing, real key, real eventType header. */
+    protected void publishViaOutbox(com.fooddelivery.common.constants.AggregateType aggregateType,
+                                    String aggregateId,
+                                    com.fooddelivery.common.constants.EventType eventType,
+                                    Object payloadObject) throws Exception {
+        com.fooddelivery.common.outbox.entity.OutboxEventEntity outboxEvent =
+                com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
+                        .id(java.util.UUID.randomUUID())
+                        .aggregateType(aggregateType)
+                        .aggregateId(aggregateId)
+                        .eventType(eventType)
+                        .payload(payloadObject instanceof String
+                                ? (String) payloadObject
+                                : objectMapper.writeValueAsString(payloadObject))
+                        .createdAt(java.time.LocalDateTime.now())
+                        .build();
+        com.fooddelivery.common.outbox.repository.OutboxEventRepository repo =
+                org.mockito.Mockito.mock(com.fooddelivery.common.outbox.repository.OutboxEventRepository.class);
+        org.mockito.Mockito.when(repo.findTop100ByStatusInOrderByCreatedAtAsc(org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(new java.util.ArrayList<>(java.util.List.of(outboxEvent)));
+        new com.fooddelivery.common.outbox.service.OutboxProcessor(repo, kafkaTemplate).processOutboxEvents();
     }
 
 }

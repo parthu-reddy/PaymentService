@@ -2,7 +2,7 @@
 
 stubrunner:
   stubsMode: REMOTE
-  repositoryRoot: git://https://github.com/parthu-reddy/FoodDeliveryContracts.git
+  repositoryRoot: git://file:///Users/parthureddy/Documents/Food%20Delivery.nosync/FoodDeliveryContracts/.git
 spring:
   main:
     allow-bean-definition-overriding: true
