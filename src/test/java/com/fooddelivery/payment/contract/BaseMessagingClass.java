@@ -95,4 +95,17 @@ public abstract class BaseMessagingClass {
         new com.fooddelivery.common.outbox.service.OutboxProcessor(repo, kafkaTemplate).processOutboxEvents();
     }
 
+    /** Mirrors WebhookProcessingService's wallet-topup branch (orderId starts with WALLET_). */
+    public void fireWalletTopupCompleted() throws Exception {
+        String orderId = "WALLET_3e14926d-0c98-5840-abcd-37ec439ddc25";
+        com.fooddelivery.common.event.PaymentSucceededEvent event =
+                new com.fooddelivery.common.event.PaymentSucceededEvent(
+                        orderId, "order_RZP654321", new java.math.BigDecimal("250.00"), "RAZORPAY");
+        com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
+        payloadNode.put("eventType",
+                com.fooddelivery.common.constants.EventType.AD_WALLET_TOPUP_COMPLETED.name());
+        publishViaOutbox(com.fooddelivery.common.constants.AggregateType.PAYMENT, orderId,
+                com.fooddelivery.common.constants.EventType.AD_WALLET_TOPUP_COMPLETED, payloadNode);
+    }
+
 }
