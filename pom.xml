@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='UTF-8'?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
@@ -67,20 +67,19 @@
             <version>7.4</version>
         </dependency>
     
-        <!-- Auto-generated OpenAPI specs -->
+        
         
         
 
     
-        <!-- Auto-generated OpenAPI specs -->
+        
         
         
     
-        <!-- Auto-generated OpenAPI specs -->
     </dependencies>
     </dependencyManagement>
     <dependencies>
-        <!-- Auto-generated OpenAPI specs -->
+        
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -147,6 +146,17 @@
             <groupId>com.cashfree.pg.java</groupId>
             <artifactId>cashfree_pg</artifactId>
             <version>6.0.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-contract-verifier</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-contract-stub-runner</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -231,7 +241,7 @@
             <artifactId>lombok</artifactId>
             <version>1.18.38</version>
         </dependency>
-    </dependencies>
+    <dependency><groupId>org.springframework.kafka</groupId><artifactId>spring-kafka-test</artifactId><version>3.1.2</version><scope>test</scope></dependency></dependencies>
 
     <build>
         <plugins>
@@ -310,6 +320,17 @@
             
         
             
+        
+            <plugin>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-contract-maven-plugin</artifactId>
+                <version>4.1.2</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <testFramework>JUNIT5</testFramework>
+                    <baseClassForTests>com.fooddelivery.payments.ContractTestBase</baseClassForTests>
+                <baseClassMappings><baseClassMapping><contractPackageRegex>.*messaging.*</contractPackageRegex><baseClassFQN>com.fooddelivery.payment.contract.BaseMessagingClass</baseClassFQN></baseClassMapping></baseClassMappings></configuration>
+            </plugin>
         </plugins>
     </build>
 

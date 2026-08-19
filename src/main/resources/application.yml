@@ -6,6 +6,8 @@ spring:
       observation-enabled: true
   application:
     name: payment-service
+  main:
+    allow-bean-definition-overriding: true
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
 
