@@ -109,4 +109,11 @@ public class PaymentController {
             return ResponseEntity.status(500).body("Internal server error: " + e.getMessage());
         }
     }
+
+    @GetMapping("/status")
+    public ResponseEntity<java.util.Map<String, Object>> getPaymentStatus(@RequestParam("orderId") String orderId) {
+        return paymentIntentRepository.findByOrderId(orderId)
+            .map(intent -> ResponseEntity.ok((java.util.Map<String, Object>) java.util.Collections.<String, Object>singletonMap("status", intent.getStatus().name())))
+            .orElseGet(() -> ResponseEntity.notFound().build());
+    }
 }
