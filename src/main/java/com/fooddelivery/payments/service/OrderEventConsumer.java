@@ -64,16 +64,6 @@ public class OrderEventConsumer {
                 if (com.fooddelivery.common.constants.EventType.PAYMENT_REFUND_REQUESTED.name().equals(eventType)) {
                     log.info("Received PAYMENT_REFUND_REQUESTED event");
                     JsonNode payloadNode = rootNode;
-                    if (rootNode.has("payload")) {
-                        String innerPayloadStr = rootNode.get("payload").asText();
-                        if (innerPayloadStr != null && !innerPayloadStr.trim().isEmpty()) {
-                             try {
-                                  payloadNode = objectMapper.readTree(innerPayloadStr);
-                             } catch (Exception e) {
-                                  // fallback
-                             }
-                        }
-                    }
                     
                     String gatewayOrderId = payloadNode.path("gatewayOrderId").asText(null);
                     double amountInInr = payloadNode.path("amountInInr").asDouble(0);

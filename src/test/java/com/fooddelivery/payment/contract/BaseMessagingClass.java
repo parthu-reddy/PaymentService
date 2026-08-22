@@ -87,7 +87,7 @@ public abstract class BaseMessagingClass {
                 org.mockito.Mockito.mock(com.fooddelivery.common.outbox.repository.OutboxEventRepository.class);
         org.mockito.Mockito.when(repo.findTop100ByStatusInOrderByCreatedAtAsc(org.mockito.ArgumentMatchers.anyList()))
                 .thenReturn(new java.util.ArrayList<>(java.util.List.of(outboxEvent)));
-        new com.fooddelivery.common.outbox.service.OutboxProcessor(repo, kafkaTemplate).processOutboxEvents();
+        new com.fooddelivery.common.outbox.service.OutboxProcessor(repo, kafkaTemplate, new io.micrometer.core.instrument.simple.SimpleMeterRegistry()).processOutboxEvents();
     }
 
     /** Mirrors WebhookProcessingService's wallet-topup branch (orderId starts with WALLET_). */

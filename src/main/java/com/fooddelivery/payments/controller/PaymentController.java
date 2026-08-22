@@ -112,7 +112,7 @@ public class PaymentController {
 
     @GetMapping("/status")
     public ResponseEntity<java.util.Map<String, Object>> getPaymentStatus(@RequestParam("orderId") String orderId) {
-        return paymentIntentRepository.findByOrderId(orderId)
+        return paymentIntentRepository.findByGatewayOrderId(orderId)
             .map(intent -> ResponseEntity.ok((java.util.Map<String, Object>) java.util.Collections.<String, Object>singletonMap("status", intent.getStatus().name())))
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
