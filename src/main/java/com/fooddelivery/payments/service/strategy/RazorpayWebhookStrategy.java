@@ -35,9 +35,9 @@ public class RazorpayWebhookStrategy implements WebhookHandlerStrategy {
             // But delegate expects standard amount. 
             // wait, delegate expects the original payload and extracts amount_refunded/amount.
             // Let's create a synthetic payload for delegate so it doesn't need to know Razorpay's structure.
-            double amountInPaise = rootNode.path("payload").path("refund").path("entity").path("amount").asDouble(0);
+            java.math.BigDecimal amountInPaise = rootNode.path("payload").path("refund").path("entity").path("amount").decimalValue();
             com.fasterxml.jackson.databind.node.ObjectNode syntheticPayload = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
-            syntheticPayload.put("amount_refunded", amountInPaise / 100.0);
+            syntheticPayload.put("amount_refunded", amountInPaise.divide(new java.math.BigDecimal("100")));
             
             if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
                 delegate.handleRefundSuccess(gatewayOrderId, refundId, syntheticPayload);

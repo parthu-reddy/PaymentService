@@ -12,6 +12,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 
+import com.fooddelivery.common.outbox.entity.OutboxEventEntity;
+import com.fooddelivery.common.outbox.repository.OutboxEventRepository;
+import com.fooddelivery.common.enums.OutboxStatus;
+import org.springframework.web.bind.annotation.*;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/internal/admin/payments/dlq")
 @lombok.extern.slf4j.Slf4j
@@ -19,10 +25,12 @@ public class AdminDlqController {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final OutboxEventRepository outboxEventRepository;
 
-    public AdminDlqController(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
+    public AdminDlqController(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper, OutboxEventRepository outboxEventRepository) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.outboxEventRepository = outboxEventRepository;
     }
 
     /**
@@ -34,7 +42,8 @@ public class AdminDlqController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<String>> retryDlqEvent(
             @RequestBody Map<String, Object> payload, 
-            @RequestParam(required = false) String topic) {
+            @RequestParam(required = false) String topic,
+            @RequestHeader(value = "eventId", required = false) String eventId) {
         
         try {
             String jsonPayload = objectMapper.writeValueAsString(payload);
@@ -54,16 +63,62 @@ public class AdminDlqController {
                 }
             }
             
+            org.springframework.messaging.support.MessageBuilder<String> builder = org.springframework.messaging.support.MessageBuilder
+                    .withPayload(jsonPayload)
+                    .setHeader(org.springframework.kafka.support.KafkaHeaders.TOPIC, targetTopic);
+            
             if (partitionKey != null) {
-                kafkaTemplate.send(targetTopic, partitionKey, jsonPayload);
-            } else {
-                kafkaTemplate.send(targetTopic, jsonPayload);
+                builder.setHeader(org.springframework.kafka.support.KafkaHeaders.KEY, partitionKey);
             }
+            if (eventId != null) {
+                builder.setHeader("eventId", eventId);
+            } else if (payload.containsKey("eventId") && payload.get("eventId") != null) {
+                builder.setHeader("eventId", payload.get("eventId").toString());
+            }
+
+            kafkaTemplate.send(builder.build());
             
             return ResponseEntity.ok(ApiResponse.success("Event republished successfully to " + targetTopic, "Successfully queued for retry"));
         } catch (Exception e) {
             log.error("Failed to retry DLQ event in PaymentService", e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to republish event: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/outbox")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<org.springframework.data.domain.Page<OutboxEventEntity>> getOutboxDlqEvents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<OutboxEventEntity> outboxPage = 
+            outboxEventRepository.findByStatus(OutboxStatus.DLQ, pageable);
+            
+        return ResponseEntity.ok(outboxPage);
+    }
+
+    @PostMapping("/outbox/{eventId}/retry")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<String>> retryOutboxDlqEvent(@PathVariable java.util.UUID eventId) {
+        try {
+            OutboxEventEntity event = outboxEventRepository.findById(eventId)
+                    .orElseThrow(() -> new IllegalArgumentException("Outbox event not found: " + eventId));
+            
+            if (event.getStatus() != OutboxStatus.DLQ) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Event can only be retried if status is DLQ. Current status: " + event.getStatus()));
+            }
+            
+            log.info("Admin manually retrying outbox DLQ event: {}", eventId);
+            
+            event.setStatus(OutboxStatus.UNPROCESSED);
+            event.setRetryCount(0);
+            outboxEventRepository.save(event);
+            
+            return ResponseEntity.ok(ApiResponse.success("Outbox event queued for retry", "Successfully reset to UNPROCESSED"));
+        } catch (Exception e) {
+            log.error("Failed to retry outbox DLQ event", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to retry outbox event: " + e.getMessage()));
         }
     }
 }

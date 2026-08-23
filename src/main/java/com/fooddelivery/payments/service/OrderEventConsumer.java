@@ -40,7 +40,7 @@ public class OrderEventConsumer {
             attempts = "4",
             backoff = @Backoff(delay = 2000, multiplier = 2.0, maxDelay = 10000)
     )
-    @KafkaListener(topics = com.fooddelivery.common.constants.KafkaConstants.TOPIC_ORDER_EVENTS, groupId = com.fooddelivery.common.constants.KafkaConstants.GROUP_PAYMENT_SERVICE)
+    @KafkaListener(topics = com.fooddelivery.common.constants.KafkaConstants.TOPIC_ORDER_EVENTS, groupId = com.fooddelivery.common.constants.KafkaConstants.GROUP_PAYMENT_SERVICE + "-ordereventconsumer")
     public void consumeOrderEvents(String payload, @org.springframework.messaging.handler.annotation.Headers java.util.Map<String, Object> headers) {
         try {
             String extractedEventId = com.fooddelivery.common.util.KafkaHeaderUtils.extractHeaderValue(headers, "eventId");
@@ -66,11 +66,11 @@ public class OrderEventConsumer {
                     JsonNode payloadNode = rootNode;
                     
                     String gatewayOrderId = payloadNode.path("gatewayOrderId").asText(null);
-                    double amountInInr = payloadNode.path("amountInInr").asDouble(0);
+                    java.math.BigDecimal amountInInr = java.math.BigDecimal.valueOf(payloadNode.path("amountInInr").asDouble(0));
                     String gatewayNameStr = payloadNode.path("gatewayName").asText(null);
                     String refundDestStr = payloadNode.path("refundDestination").asText("GATEWAY");
                     
-                    if (gatewayOrderId != null && amountInInr > 0 && gatewayNameStr != null) {
+                    if (gatewayOrderId != null && amountInInr.compareTo(java.math.BigDecimal.ZERO) > 0 && gatewayNameStr != null) {
                         try {
                             PaymentGateway gateway = PaymentGateway.valueOf(gatewayNameStr.toUpperCase());
                             

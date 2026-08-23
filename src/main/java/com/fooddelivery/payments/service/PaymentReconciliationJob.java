@@ -34,41 +34,45 @@ public class PaymentReconciliationJob {
         this.redisTemplate = redisTemplate;
     }
 
-    @Scheduled(fixedRateString = "${payment.reconciliation.interval:600000}")
+    @Scheduled(fixedDelayString = "${payment.reconciliation.interval:600000}")
     public void reconcileStuckPayments() {
-        Boolean locked = redisTemplate.opsForValue().setIfAbsent(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_RECONCILE_PENDING_PAYMENTS, "1", Duration.ofSeconds(500));
-        if (!Boolean.TRUE.equals(locked)) {
-            return;
-        }
+        com.fooddelivery.common.lock.RedisLock _redisLock = new com.fooddelivery.common.lock.RedisLock(redisTemplate);
+        String _lockToken = java.util.UUID.randomUUID().toString();
+        boolean locked = _redisLock.tryAcquire(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_RECONCILE_PENDING_PAYMENTS, _lockToken, Duration.ofSeconds(500));
+        if (!locked) { return; }
 
-        log.info("Starting Payment Reconciliation Job");
+        try {
+            log.info("Starting Payment Reconciliation Job");
 
-        // Find intents stuck in INITIATED for more than 10 minutes
-        List<PaymentIntent> stuckIntents = paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(
-                PaymentIntentStatus.INITIATED, 
-                java.time.ZonedDateTime.now().minusMinutes(10)
-        );
+            // Find intents stuck in INITIATED for more than 10 minutes
+            List<PaymentIntent> stuckIntents = paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(
+                    PaymentIntentStatus.INITIATED, 
+                    java.time.ZonedDateTime.now().minusMinutes(10)
+            );
 
-        for (PaymentIntent intent : stuckIntents) {
-            try {
-                log.info("Reconciling stuck payment intent: {}", intent.getId());
-                PaymentIntentStatus status = orchestrator.getStrategy(intent.getGatewayName())
-                        .verifyStatus(intent.getGatewayOrderId());
+            for (PaymentIntent intent : stuckIntents) {
+                try {
+                    log.info("Reconciling stuck payment intent: {}", intent.getId());
+                    PaymentIntentStatus status = orchestrator.getStrategy(intent.getGatewayName())
+                            .verifyStatus(intent.getGatewayOrderId());
 
-                if (status == PaymentIntentStatus.SUCCESS || 
-                    status == PaymentIntentStatus.CAPTURED || 
-                    status == PaymentIntentStatus.PAID) {
-                    
-                    log.info("Payment intent {} was actually successful on gateway. Triggering fulfillment.", intent.getId());
-                    webhookProcessingService.handleSuccessfulPayment(intent.getGatewayOrderId());
-                } else if (status == PaymentIntentStatus.FAILED) {
-                    webhookProcessingService.handleFailedPayment(intent.getGatewayOrderId(), "Reconciliation determined payment failed");
-                    log.info("Reconciled payment intent to FAILED: {}", intent.getId());
+                    if (status == PaymentIntentStatus.SUCCESS || 
+                        status == PaymentIntentStatus.CAPTURED || 
+                        status == PaymentIntentStatus.PAID) {
+                        
+                        log.info("Payment intent {} was actually successful on gateway. Triggering fulfillment.", intent.getId());
+                        webhookProcessingService.handleSuccessfulPayment(intent.getGatewayOrderId());
+                    } else if (status == PaymentIntentStatus.FAILED) {
+                        webhookProcessingService.handleFailedPayment(intent.getGatewayOrderId(), "Reconciliation determined payment failed");
+                        log.info("Reconciled payment intent to FAILED: {}", intent.getId());
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to reconcile intent: {}", intent.getId(), e);
                 }
-            } catch (Exception e) {
-                log.error("Failed to reconcile intent: {}", intent.getId(), e);
             }
+            log.info("Completed Payment Reconciliation Job");
+        } finally {
+            _redisLock.release(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_RECONCILE_PENDING_PAYMENTS, _lockToken);
         }
-        log.info("Completed Payment Reconciliation Job");
     }
 }

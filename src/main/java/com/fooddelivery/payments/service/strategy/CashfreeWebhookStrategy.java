@@ -25,7 +25,7 @@ public class CashfreeWebhookStrategy implements WebhookHandlerStrategy {
                 delegate.handleFailedPayment(gatewayOrderId, "Cashfree payment failed");
             } else if (EVENT_REFUND_SUCCESS.equals(eventType)) {
                 String refundId = rootNode.path("data").path("refund").path("refund_id").asText();
-                double refundAmount = rootNode.path("data").path("refund").path("refund_amount").asDouble(0);
+                java.math.BigDecimal refundAmount = rootNode.path("data").path("refund").path("refund_amount").decimalValue();
                 com.fasterxml.jackson.databind.node.ObjectNode syntheticPayload = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
                 syntheticPayload.put("amount_refunded", refundAmount);
                 delegate.handleRefundSuccess(gatewayOrderId, refundId, syntheticPayload);

@@ -56,7 +56,7 @@ public class PaymentReconciliationJobTest {
         intent.setOrderId(UUID.randomUUID().toString());
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(eq("lock:reconcilePendingPayments"), eq("1"), any())).thenReturn(true);
+        when(valueOperations.setIfAbsent(eq("lock:reconcilePendingPayments"), org.mockito.ArgumentMatchers.anyString(), any())).thenReturn(true);
 
         when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(ZonedDateTime.class)))
                 .thenReturn(List.of(intent));

@@ -80,10 +80,10 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     @CircuitBreaker(name = "razorpayRefund", fallbackMethod = "refundFallback")
-    public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
+    public boolean initiateRefund(String gatewayOrderId, java.math.BigDecimal amount, String reason) {
         try {
             // Amount must be in paise (amount * 100)
-            int amountInPaise = (int) (amount * 100);
+            int amountInPaise = amount.multiply(new java.math.BigDecimal("100")).intValue();
             
             JSONObject refundRequest = new JSONObject();
             refundRequest.put("amount", amountInPaise);
@@ -120,7 +120,7 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
         }
     }
 
-    public boolean refundFallback(String gatewayOrderId, double amount, String reason, Throwable t) {
+    public boolean refundFallback(String gatewayOrderId, java.math.BigDecimal amount, String reason, Throwable t) {
         log.error("CircuitBreaker fallback triggered for initiateRefund (order: {}, amount: {}). Reason: {}", gatewayOrderId, amount, t.getMessage());
         return false;
     }

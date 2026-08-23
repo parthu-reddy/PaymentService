@@ -70,7 +70,7 @@ public class MockRazorpayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
-    public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
+    public boolean initiateRefund(String gatewayOrderId, java.math.BigDecimal amount, String reason) {
         log.info("[DEBUG PROFILE] Mocking Razorpay Gateway initiate refund for gateway order: {}", gatewayOrderId);
         
         scheduler.schedule(() -> {

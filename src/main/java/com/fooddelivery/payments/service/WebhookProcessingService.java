@@ -406,15 +406,15 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
      * @param gatewayName    the name of the original gateway (for record-keeping only)
      */
     @Transactional
-    public void processWalletRefund(String gatewayOrderId, double amountInInr, String gatewayName) {
+    public void processWalletRefund(String gatewayOrderId, java.math.BigDecimal amountInInr, String gatewayName) {
         if (gatewayOrderId == null || gatewayOrderId.isBlank()) {
             throw new IllegalArgumentException("gatewayOrderId must not be null or blank for wallet refund");
         }
-        if (amountInInr <= 0) {
+        if (amountInInr.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Wallet refund amount must be strictly positive. Got: " + amountInInr);
         }
 
-        BigDecimal refundAmount = BigDecimal.valueOf(amountInInr);
+        BigDecimal refundAmount = amountInInr;
 
         Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
         if (intentOpt.isEmpty()) {

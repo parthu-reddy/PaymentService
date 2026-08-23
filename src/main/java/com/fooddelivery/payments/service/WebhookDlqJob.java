@@ -31,9 +31,11 @@ public class WebhookDlqJob {
     }
 
     // Run every 10 minutes
-    @Scheduled(fixedRate = 600000)
+    @Scheduled(fixedDelay = 600000)
     public void processFailedWebhooks() {
-        Boolean locked = redisTemplate.opsForValue().setIfAbsent(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_PROCESS_WEBHOOK_DLQ, "1", java.time.Duration.ofSeconds(500));
+        com.fooddelivery.common.lock.RedisLock _redisLock = new com.fooddelivery.common.lock.RedisLock(redisTemplate);
+        String _lockToken = java.util.UUID.randomUUID().toString();
+        boolean locked = _redisLock.tryAcquire(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_PROCESS_WEBHOOK_DLQ, _lockToken, java.time.Duration.ofSeconds(500));
         if (!Boolean.TRUE.equals(locked)) {
             return;
         }
@@ -60,7 +62,7 @@ public class WebhookDlqJob {
             
             log.info("Completed DLQ processing job");
         } finally {
-            redisTemplate.delete(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_PROCESS_WEBHOOK_DLQ);
+            _redisLock.release(com.fooddelivery.common.constants.RedisKeyConstants.LOCK_PROCESS_WEBHOOK_DLQ, _lockToken);
         }
     }
 }

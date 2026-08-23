@@ -95,7 +95,7 @@ public class PaymentController {
             boolean success = orchestrator.initiateRefund(
                     gateway,
                     request.gatewayOrderId,
-                    request.amountInInr.doubleValue(),
+                    request.amountInInr,
                     request.reason
             );
             if (success) {

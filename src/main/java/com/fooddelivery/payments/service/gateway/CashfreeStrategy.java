@@ -102,7 +102,7 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
 
     @Override
     @CircuitBreaker(name = "cashfreeRefund", fallbackMethod = "refundFallback")
-    public boolean initiateRefund(String gatewayOrderId, double amount, String reason) {
+    public boolean initiateRefund(String gatewayOrderId, java.math.BigDecimal amount, String reason) {
         try {
             ObjectNode body = objectMapper.createObjectNode();
             body.put("refund_amount", amount);
@@ -134,7 +134,7 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
         }
     }
 
-    public boolean refundFallback(String gatewayOrderId, double amount, String reason, Throwable t) {
+    public boolean refundFallback(String gatewayOrderId, java.math.BigDecimal amount, String reason, Throwable t) {
         log.error("CircuitBreaker fallback triggered for initiateRefund (order: {}, amount: {}). Reason: {}", gatewayOrderId, amount, t.getMessage());
         return false;
     }

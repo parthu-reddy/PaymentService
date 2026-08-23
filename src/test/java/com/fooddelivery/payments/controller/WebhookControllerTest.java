@@ -43,6 +43,9 @@ public class WebhookControllerTest {
     @MockBean
     private PaymentGatewayOrchestrator orchestrator;
 
+    @MockBean
+    private com.fooddelivery.common.security.IdentityTokenService identityTokenService;
+
     @MockBean(name = "vyaparGatewayStrategy")
     private IPaymentGatewayStrategy vyaparStrategy;
 
