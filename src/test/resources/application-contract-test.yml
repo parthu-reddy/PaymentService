@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: ""
   kafka:
     consumer:
       auto-offset-reset: earliest

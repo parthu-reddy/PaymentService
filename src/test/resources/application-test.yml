@@ -1,6 +1,8 @@
 stubrunner:
   stubsMode: LOCAL
 spring:
+  config:
+    import: ""
   main:
     allow-bean-definition-overriding: true
   flyway:

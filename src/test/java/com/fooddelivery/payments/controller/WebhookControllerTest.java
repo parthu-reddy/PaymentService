@@ -27,6 +27,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(
     controllers = WebhookController.class,
+    // A web slice has no datasource, so the JPA-backed outbox must opt out -- see the
+    // contract stated in OutboxConfiguration's javadoc. Without it the context dies on a
+    // missing entityManagerFactory. Discovery is likewise not part of a web slice.
+    properties = {
+        "outbox.enabled=false",
+        "eureka.client.enabled=false",
+        "spring.cloud.discovery.enabled=false"
+    },
     excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(
         type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE,
         classes = com.fooddelivery.payments.config.JpaConfig.class
