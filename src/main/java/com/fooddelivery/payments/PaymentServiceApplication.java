@@ -16,7 +16,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EnableAsync
 @EnableScheduling
 @EnableRetry
-@com.fooddelivery.common.outbox.config.EnableOutbox
 public class PaymentServiceApplication {
 
     public static void main(String[] args) {
