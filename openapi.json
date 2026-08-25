@@ -1,1 +1,532 @@
-{"openapi":"3.0.1","info":{"title":"OpenAPI definition","version":"v0"},"servers":[{"url":"http://localhost","description":"Generated server url"}],"paths":{"/api/v1/webhooks/vyapar":{"post":{"tags":["webhook-controller"],"operationId":"handleVyaparWebhook","parameters":[{"name":"X-VyaparGateway-Signature","in":"header","required":false,"schema":{"type":"string"}},{"name":"X-VyaparGateway-Event-Id","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"string"}}}}}}},"/api/v1/webhooks/razorpay":{"post":{"tags":["webhook-controller"],"operationId":"handleRazorpayWebhook","parameters":[{"name":"x-razorpay-signature","in":"header","required":false,"schema":{"type":"string"}},{"name":"x-razorpay-event-id","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"string"}}}}}}},"/api/v1/webhooks/cashfree":{"post":{"tags":["webhook-controller"],"operationId":"handleCashfreeWebhook","parameters":[{"name":"x-webhook-signature","in":"header","required":false,"schema":{"type":"string"}},{"name":"x-webhook-timestamp","in":"header","required":false,"schema":{"type":"string"}},{"name":"x-webhook-event-id","in":"header","required":false,"schema":{"type":"string"}}],"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"string"}}}}}}},"/api/v1/payments/refund":{"post":{"tags":["payment-controller"],"operationId":"refundOrder","parameters":[{"name":"gateway","in":"query","required":true,"schema":{"type":"string","enum":["RAZORPAY","CASHFREE","VYAPAR"]}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/RefundRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"string"}}}}}}},"/api/v1/payments/create-order":{"post":{"tags":["payment-controller"],"operationId":"createOrder","parameters":[{"name":"gateway","in":"query","required":true,"schema":{"type":"string","enum":["RAZORPAY","CASHFREE","VYAPAR"]}}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CreateOrderRequest"}}},"required":true},"responses":{"200":{"description":"OK","content":{"*/*":{"schema":{"type":"string"}}}}}}},"/api/v1/internal/admin/payments/dlq/retry":{"post":{"tags":["admin-dlq-controller"],"operationId":"retryDlqEvent","parameters":[{"name":"topic","in":"query","required":false,"schema":{"type":"string"}},{"name":"eventId","in":"header","required":false,"schema":{"type":"string"}}],"requestBody":{"content":{"application/json":{"schema":{"type":"object","additionalProperties":{"type":"object"}}}},"required":true},"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiResponseString"}}}}}}},"/api/v1/internal/admin/payments/dlq/outbox/{eventId}/retry":{"post":{"tags":["admin-dlq-controller"],"operationId":"retryOutboxDlqEvent","parameters":[{"name":"eventId","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ApiResponseString"}}}}}}},"/api/v1/payments/status":{"get":{"tags":["payment-controller"],"operationId":"getPaymentStatus","parameters":[{"name":"orderId","in":"query","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"object","additionalProperties":{"type":"object"}}}}}}}},"/api/v1/internal/admin/payments/dlq/outbox":{"get":{"tags":["admin-dlq-controller"],"operationId":"getOutboxDlqEvents","parameters":[{"name":"page","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":0}},{"name":"size","in":"query","required":false,"schema":{"type":"integer","format":"int32","default":20}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PageOutboxEventEntity"}}}}}}}},"components":{"schemas":{"RefundRequest":{"required":["amountInInr","gatewayOrderId"],"type":"object","properties":{"gatewayOrderId":{"type":"string"},"amountInInr":{"type":"number"},"reason":{"type":"string"}}},"CreateOrderRequest":{"required":["amountInInr","internalOrderId"],"type":"object","properties":{"internalOrderId":{"pattern":"^([a-zA-Z0-9_-]+_)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$","type":"string"},"amountInInr":{"type":"number"},"customerPhone":{"type":"string"}}},"ApiResponseString":{"required":["message","success","timestamp"],"type":"object","properties":{"success":{"type":"boolean"},"message":{"type":"string"},"data":{"type":"string"},"timestamp":{"type":"string","format":"date-time"}}},"OutboxEventEntity":{"type":"object","properties":{"id":{"type":"string","format":"uuid"},"aggregateType":{"type":"string","enum":["ORDER","PAYMENT","NOTIFICATION","OUTLET","BRAND","LEDGER","ADVERTISEMENT","WALLET","CHAT_SESSION","REVIEW"]},"aggregateId":{"type":"string"},"eventType":{"type":"string","enum":["ORDER_CREATED","ORDER_PAID","ORDER_ACCEPTED","ORDER_PREPARING","ORDER_READY","ORDER_DELIVERED","ORDER_REJECTED","ORDER_AT_RESTAURANT","ORDER_STATUS_UPDATED","ORDER_STATUS_SYNC","ORDER_CANCELLED","ORDER_CANCELLED_BY_RESTAURANT","ORDER_CANCELLED_BY_CUSTOMER","ORDER_CANCELLED_BY_ADMIN","ORDER_DELAY_APPROVAL_REQUESTED","ORDER_DELAY_APPROVED","ORDER_DELAY_REJECTED","DISPATCH_CANDIDATE_FOUND","DISPATCH_FAILED","DRIVER_ASSIGNED","ORDER_DRIVER_REJECTED","MANUAL_INTERVENTION_REQUIRED","FORCE_ASSIGN_DRIVER","DELIVERY_FAILED","NOTIFICATION_REQUEST","NOTIFICATION_DISPATCH","PAYMENT_WEBHOOK","PAYMENT_COMPLETED","PAYMENT_FAILED","PAYMENT_REFUNDED","PAYMENT_REFUND_REQUESTED","PAYMENT_PARTIALLY_REFUNDED","ORDER_PARTIALLY_REFUNDED","LEDGER_TRANSACTION_REQUEST","LEDGER_TRANSACTION_FAILED","LEDGER_REVERSAL_REQUEST","LEDGER_BULK_TRANSACTION_REQUEST","OUTLET_ACTIVATED","MENU_UPDATED","OUTLET_DEACTIVATED","BRAND_CREATED","AD_CAMPAIGN_CREATED","AD_CAMPAIGN_UPDATED","AD_CAMPAIGN_PAUSED","AD_CAMPAIGN_RESUMED","AD_CAMPAIGN_COMPLETED","AD_CAMPAIGN_DELETED","AD_CREATIVE_PENDING","AD_CREATIVE_APPROVED","AD_CREATIVE_REJECTED","AD_CAMPAIGN_BUDGET_EXHAUSTED","AD_CAMPAIGN_PACING_UPDATED","AD_IMPRESSION_BILLED","AD_CLICK_BILLED","AD_CONVERSION_BILLED","AD_WALLET_TOPUP_REQUEST","AD_WALLET_TOPUP_COMPLETED","AD_BUDGET_ALERT","REFUND_GENERATED","REVERSAL_GENERATED","EARNINGS_GENERATED","PAYOUT_GENERATED","CHAT_REFUND_QUOTE_REQUESTED","CHAT_REFUND_REQUESTED","CHAT_REFUND_QUOTE_RESPONSE","CHAT_REFUND_DECISION","CHAT_REFUND_ERROR","REVIEW_CREATED"]},"idempotencyKey":{"type":"string"},"payload":{"type":"string"},"createdAt":{"type":"string","format":"date-time"},"status":{"type":"string","enum":["UNPROCESSED","PROCESSED","FAILED","DLQ"]},"processedAt":{"type":"string","format":"date-time"},"errorMessage":{"type":"string"},"retryCount":{"type":"integer","format":"int32"},"new":{"type":"boolean"}}},"PageOutboxEventEntity":{"type":"object","properties":{"totalPages":{"type":"integer","format":"int32"},"totalElements":{"type":"integer","format":"int64"},"first":{"type":"boolean"},"last":{"type":"boolean"},"numberOfElements":{"type":"integer","format":"int32"},"sort":{"type":"array","items":{"$ref":"#/components/schemas/SortObject"}},"pageable":{"$ref":"#/components/schemas/PageableObject"},"size":{"type":"integer","format":"int32"},"content":{"type":"array","items":{"$ref":"#/components/schemas/OutboxEventEntity"}},"number":{"type":"integer","format":"int32"},"empty":{"type":"boolean"}}},"PageableObject":{"type":"object","properties":{"sort":{"type":"array","items":{"$ref":"#/components/schemas/SortObject"}},"paged":{"type":"boolean"},"pageNumber":{"type":"integer","format":"int32"},"pageSize":{"type":"integer","format":"int32"},"unpaged":{"type":"boolean"},"offset":{"type":"integer","format":"int64"}}},"SortObject":{"type":"object","properties":{"direction":{"type":"string"},"nullHandling":{"type":"string"},"ascending":{"type":"boolean"},"property":{"type":"string"},"ignoreCase":{"type":"boolean"}}}}}}
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "OpenAPI definition",
+    "version" : "v0"
+  },
+  "servers" : [ {
+    "url" : "http://localhost",
+    "description" : "Generated server url"
+  } ],
+  "paths" : {
+    "/api/v1/webhooks/vyapar" : {
+      "post" : {
+        "tags" : [ "webhook-controller" ],
+        "operationId" : "handleVyaparWebhook",
+        "parameters" : [ {
+          "name" : "X-VyaparGateway-Signature",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "X-VyaparGateway-Event-Id",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/razorpay" : {
+      "post" : {
+        "tags" : [ "webhook-controller" ],
+        "operationId" : "handleRazorpayWebhook",
+        "parameters" : [ {
+          "name" : "x-razorpay-signature",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "x-razorpay-event-id",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/cashfree" : {
+      "post" : {
+        "tags" : [ "webhook-controller" ],
+        "operationId" : "handleCashfreeWebhook",
+        "parameters" : [ {
+          "name" : "x-webhook-signature",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "x-webhook-timestamp",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "x-webhook-event-id",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/refund" : {
+      "post" : {
+        "tags" : [ "payment-controller" ],
+        "operationId" : "refundOrder",
+        "parameters" : [ {
+          "name" : "gateway",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "RAZORPAY", "CASHFREE", "VYAPAR" ]
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefundRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/create-order" : {
+      "post" : {
+        "tags" : [ "payment-controller" ],
+        "operationId" : "createOrder",
+        "parameters" : [ {
+          "name" : "gateway",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "RAZORPAY", "CASHFREE", "VYAPAR" ]
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/internal/admin/payments/dlq/retry" : {
+      "post" : {
+        "tags" : [ "admin-dlq-controller" ],
+        "operationId" : "retryDlqEvent",
+        "parameters" : [ {
+          "name" : "topic",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "name" : "eventId",
+          "in" : "header",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "object"
+                }
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseString"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/internal/admin/payments/dlq/outbox/{eventId}/retry" : {
+      "post" : {
+        "tags" : [ "admin-dlq-controller" ],
+        "operationId" : "retryOutboxDlqEvent",
+        "parameters" : [ {
+          "name" : "eventId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiResponseString"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payments/status" : {
+      "get" : {
+        "tags" : [ "payment-controller" ],
+        "operationId" : "getPaymentStatus",
+        "parameters" : [ {
+          "name" : "orderId",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/internal/admin/payments/dlq/outbox" : {
+      "get" : {
+        "tags" : [ "admin-dlq-controller" ],
+        "operationId" : "getOutboxDlqEvents",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PageOutboxEventEntity"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "RefundRequest" : {
+        "required" : [ "amountInInr", "gatewayOrderId" ],
+        "type" : "object",
+        "properties" : {
+          "gatewayOrderId" : {
+            "type" : "string"
+          },
+          "amountInInr" : {
+            "type" : "number"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CreateOrderRequest" : {
+        "required" : [ "amountInInr", "internalOrderId" ],
+        "type" : "object",
+        "properties" : {
+          "internalOrderId" : {
+            "pattern" : "^([a-zA-Z0-9_-]+_)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
+            "type" : "string"
+          },
+          "amountInInr" : {
+            "type" : "number"
+          },
+          "customerPhone" : {
+            "type" : "string"
+          }
+        }
+      },
+      "ApiResponseString" : {
+        "required" : [ "message", "success", "timestamp" ],
+        "type" : "object",
+        "properties" : {
+          "success" : {
+            "type" : "boolean"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "data" : {
+            "type" : "string"
+          },
+          "timestamp" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "OutboxEventEntity" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "aggregateType" : {
+            "type" : "string",
+            "enum" : [ "ORDER", "PAYMENT", "NOTIFICATION", "OUTLET", "BRAND", "LEDGER", "ADVERTISEMENT", "WALLET", "CHAT_SESSION", "REVIEW" ]
+          },
+          "aggregateId" : {
+            "type" : "string"
+          },
+          "eventType" : {
+            "type" : "string",
+            "enum" : [ "ORDER_CREATED", "ORDER_PAID", "ORDER_ACCEPTED", "ORDER_PREPARING", "ORDER_READY", "ORDER_DELIVERED", "ORDER_REJECTED", "ORDER_AT_RESTAURANT", "ORDER_STATUS_UPDATED", "ORDER_STATUS_SYNC", "ORDER_CANCELLED", "ORDER_CANCELLED_BY_RESTAURANT", "ORDER_CANCELLED_BY_CUSTOMER", "ORDER_CANCELLED_BY_ADMIN", "ORDER_DELAY_APPROVAL_REQUESTED", "ORDER_DELAY_APPROVED", "ORDER_DELAY_REJECTED", "DISPATCH_CANDIDATE_FOUND", "DISPATCH_FAILED", "DRIVER_ASSIGNED", "ORDER_DRIVER_REJECTED", "MANUAL_INTERVENTION_REQUIRED", "FORCE_ASSIGN_DRIVER", "DELIVERY_FAILED", "NOTIFICATION_REQUEST", "NOTIFICATION_DISPATCH", "PAYMENT_WEBHOOK", "PAYMENT_COMPLETED", "PAYMENT_FAILED", "PAYMENT_REFUNDED", "PAYMENT_REFUND_REQUESTED", "PAYMENT_PARTIALLY_REFUNDED", "ORDER_PARTIALLY_REFUNDED", "LEDGER_TRANSACTION_REQUEST", "LEDGER_TRANSACTION_FAILED", "LEDGER_REVERSAL_REQUEST", "LEDGER_BULK_TRANSACTION_REQUEST", "OUTLET_ACTIVATED", "MENU_UPDATED", "OUTLET_DEACTIVATED", "BRAND_CREATED", "AD_CAMPAIGN_CREATED", "AD_CAMPAIGN_UPDATED", "AD_CAMPAIGN_PAUSED", "AD_CAMPAIGN_RESUMED", "AD_CAMPAIGN_COMPLETED", "AD_CAMPAIGN_DELETED", "AD_CREATIVE_PENDING", "AD_CREATIVE_APPROVED", "AD_CREATIVE_REJECTED", "AD_CAMPAIGN_BUDGET_EXHAUSTED", "AD_CAMPAIGN_PACING_UPDATED", "AD_IMPRESSION_BILLED", "AD_CLICK_BILLED", "AD_CONVERSION_BILLED", "AD_WALLET_TOPUP_REQUEST", "AD_WALLET_TOPUP_COMPLETED", "AD_BUDGET_ALERT", "REFUND_GENERATED", "REVERSAL_GENERATED", "EARNINGS_GENERATED", "PAYOUT_GENERATED", "CHAT_REFUND_QUOTE_REQUESTED", "CHAT_REFUND_REQUESTED", "CHAT_REFUND_QUOTE_RESPONSE", "CHAT_REFUND_DECISION", "CHAT_REFUND_ERROR", "REVIEW_CREATED" ]
+          },
+          "idempotencyKey" : {
+            "type" : "string"
+          },
+          "payload" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "UNPROCESSED", "PROCESSED", "FAILED", "DLQ" ]
+          },
+          "processedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "errorMessage" : {
+            "type" : "string"
+          },
+          "retryCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "new" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "PageOutboxEventEntity" : {
+        "type" : "object",
+        "properties" : {
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "numberOfElements" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "sort" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SortObject"
+            }
+          },
+          "pageable" : {
+            "$ref" : "#/components/schemas/PageableObject"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/OutboxEventEntity"
+            }
+          },
+          "number" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "empty" : {
+            "type" : "boolean"
+          }
+        }
+      },
+      "PageableObject" : {
+        "type" : "object",
+        "properties" : {
+          "sort" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SortObject"
+            }
+          },
+          "paged" : {
+            "type" : "boolean"
+          },
+          "pageNumber" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "unpaged" : {
+            "type" : "boolean"
+          },
+          "offset" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "SortObject" : {
+        "type" : "object",
+        "properties" : {
+          "direction" : {
+            "type" : "string"
+          },
+          "nullHandling" : {
+            "type" : "string"
+          },
+          "ascending" : {
+            "type" : "boolean"
+          },
+          "property" : {
+            "type" : "string"
+          },
+          "ignoreCase" : {
+            "type" : "boolean"
+          }
+        }
+      }
+    }
+  }
+}
