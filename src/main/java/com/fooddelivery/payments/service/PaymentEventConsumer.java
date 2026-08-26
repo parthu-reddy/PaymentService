@@ -20,7 +20,7 @@ import java.util.UUID;
 
 @Service
 @lombok.extern.slf4j.Slf4j
-public class OrderEventConsumer {
+public class PaymentEventConsumer {
 
     private final ObjectMapper objectMapper;
     private final PaymentGatewayOrchestrator orchestrator;
@@ -28,7 +28,7 @@ public class OrderEventConsumer {
     private final WebhookProcessingService webhookProcessingService;
     private final IIdempotencyKeyRepository idempotencyKeyRepository;
 
-    public OrderEventConsumer(ObjectMapper objectMapper, PaymentGatewayOrchestrator orchestrator, io.micrometer.core.instrument.MeterRegistry meterRegistry, WebhookProcessingService webhookProcessingService, IIdempotencyKeyRepository idempotencyKeyRepository) {
+    public PaymentEventConsumer(ObjectMapper objectMapper, PaymentGatewayOrchestrator orchestrator, io.micrometer.core.instrument.MeterRegistry meterRegistry, WebhookProcessingService webhookProcessingService, IIdempotencyKeyRepository idempotencyKeyRepository) {
         this.objectMapper = objectMapper;
         this.orchestrator = orchestrator;
         this.meterRegistry = meterRegistry;
@@ -40,7 +40,7 @@ public class OrderEventConsumer {
             attempts = "4",
             backoff = @Backoff(delay = 2000, multiplier = 2.0, maxDelay = 10000)
     )
-    @KafkaListener(topics = com.fooddelivery.common.constants.KafkaConstants.TOPIC_ORDER_EVENTS, groupId = com.fooddelivery.common.constants.KafkaConstants.GROUP_PAYMENT_SERVICE + "-ordereventconsumer")
+    @KafkaListener(topics = com.fooddelivery.common.constants.KafkaConstants.TOPIC_PAYMENT_EVENTS, groupId = com.fooddelivery.common.constants.KafkaConstants.GROUP_PAYMENT_SERVICE + "-paymenteventconsumer")
     public void consumeOrderEvents(String payload, @org.springframework.messaging.handler.annotation.Headers java.util.Map<String, Object> headers) {
         try {
             String extractedEventId = com.fooddelivery.common.util.KafkaHeaderUtils.extractHeaderValue(headers, "eventId");
@@ -60,10 +60,10 @@ public class OrderEventConsumer {
 
             try {
                 JsonNode rootNode = objectMapper.readTree(payload);
-                String eventType = rootNode.path("eventType").asText();
+                String eventType = com.fooddelivery.common.util.EventPayloadUtils.resolveEventType(rootNode, headers);
                 if (com.fooddelivery.common.constants.EventType.PAYMENT_REFUND_REQUESTED.name().equals(eventType)) {
                     log.info("Received PAYMENT_REFUND_REQUESTED event");
-                    JsonNode payloadNode = rootNode;
+                    JsonNode payloadNode = com.fooddelivery.common.util.EventPayloadUtils.unwrapPayload(rootNode);
                     
                     String gatewayOrderId = payloadNode.path("gatewayOrderId").asText(null);
                     java.math.BigDecimal amountInInr = java.math.BigDecimal.valueOf(payloadNode.path("amountInInr").asDouble(0));

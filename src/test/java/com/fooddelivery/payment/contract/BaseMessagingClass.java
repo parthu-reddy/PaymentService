@@ -16,7 +16,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.context.annotation.Bean;
 
 @SpringBootTest(classes = BaseMessagingClass.TestConfig.class, webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration,org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration",
+        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration,org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration",
+        "spring.jpa.hibernate.ddl-auto=none",
     "spring.kafka.consumer.auto-offset-reset=earliest"
 })
 @org.springframework.test.context.ActiveProfiles("contract-test")
@@ -38,8 +39,8 @@ public abstract class BaseMessagingClass {
     @org.springframework.boot.test.mock.mockito.MockBean
     private com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository;
 
-    @org.springframework.boot.test.context.TestConfiguration
-    
+    @org.springframework.boot.SpringBootConfiguration
+    @org.springframework.boot.autoconfigure.EnableAutoConfiguration
     static class TestConfig {
         @Bean
         public KafkaMessageVerifier kafkaMessageVerifier() {
