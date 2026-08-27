@@ -385,6 +385,7 @@
         }
       },
       "OutboxEventEntity" : {
+        "required" : [ "aggregateId", "aggregateType", "createdAt", "eventType", "id", "payload", "retryCount", "status" ],
         "type" : "object",
         "properties" : {
           "id" : {
@@ -433,6 +434,7 @@
         }
       },
       "PageOutboxEventEntity" : {
+        "required" : [ "content", "empty", "first", "last", "number", "numberOfElements", "size", "totalElements", "totalPages" ],
         "type" : "object",
         "properties" : {
           "totalPages" : {
@@ -443,24 +445,24 @@
             "type" : "integer",
             "format" : "int64"
           },
+          "first" : {
+            "type" : "boolean"
+          },
+          "last" : {
+            "type" : "boolean"
+          },
+          "numberOfElements" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
           "sort" : {
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/SortObject"
             }
           },
-          "numberOfElements" : {
-            "type" : "integer",
-            "format" : "int32"
-          },
           "pageable" : {
             "$ref" : "#/components/schemas/PageableObject"
-          },
-          "first" : {
-            "type" : "boolean"
-          },
-          "last" : {
-            "type" : "boolean"
           },
           "size" : {
             "type" : "integer",
@@ -482,6 +484,7 @@
         }
       },
       "PageableObject" : {
+        "required" : [ "offset", "pageNumber", "pageSize", "paged", "unpaged" ],
         "type" : "object",
         "properties" : {
           "sort" : {
@@ -489,9 +492,6 @@
             "items" : {
               "$ref" : "#/components/schemas/SortObject"
             }
-          },
-          "unpaged" : {
-            "type" : "boolean"
           },
           "paged" : {
             "type" : "boolean"
@@ -503,6 +503,9 @@
           "pageSize" : {
             "type" : "integer",
             "format" : "int32"
+          },
+          "unpaged" : {
+            "type" : "boolean"
           },
           "offset" : {
             "type" : "integer",
