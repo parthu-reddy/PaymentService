@@ -16,7 +16,10 @@ import java.util.concurrent.TimeUnit;
 import jakarta.annotation.PreDestroy;
 
 @Service
-@Profile({"debug", "dev", "default", "test"})
+// "local" was missing while its two siblings had it, so under SPRING_PROFILES_ACTIVE=local no
+// Vyapar strategy registered at all -- neither this nor the @Profile("prod") real one -- and the
+// context failed to satisfy the dependency.
+@Profile({"debug", "dev", "default", "test", "local"})
 @lombok.extern.slf4j.Slf4j
 public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
