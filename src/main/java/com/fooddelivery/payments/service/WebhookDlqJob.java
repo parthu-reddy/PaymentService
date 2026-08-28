@@ -15,6 +15,13 @@ import java.util.List;
 
 @Service
 @lombok.extern.slf4j.Slf4j
+/**
+ * <strong>@replication-safe: distributed-lock</strong> -- holds a Redis lock before replaying dead letters.
+ *
+ * <p>Classification recorded 2026-08-27 (Phase 7). Every @Scheduled class in this workspace
+ * carries one of these markers; the BOOT-SCHEDULE-CLASSIFIED check fails on a new one that
+ * does not. Change the marker only after re-reading what the job actually does.
+ */
 public class WebhookDlqJob {
 
     private final IWebhookDeliveryRepository webhookDeliveryRepository;

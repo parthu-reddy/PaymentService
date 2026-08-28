@@ -58,15 +58,22 @@ public class PaymentEventConsumer {
                 return;
             }
 
+            boolean handled = false;
             try {
                 JsonNode rootNode = objectMapper.readTree(payload);
                 String eventType = com.fooddelivery.common.util.EventPayloadUtils.resolveEventType(rootNode, headers);
                 if (com.fooddelivery.common.constants.EventType.PAYMENT_REFUND_REQUESTED.name().equals(eventType)) {
+                    handled = true;
                     log.info("Received PAYMENT_REFUND_REQUESTED event");
                     JsonNode payloadNode = com.fooddelivery.common.util.EventPayloadUtils.unwrapPayload(rootNode);
                     
                     String gatewayOrderId = payloadNode.path("gatewayOrderId").asText(null);
-                    java.math.BigDecimal amountInInr = java.math.BigDecimal.valueOf(payloadNode.path("amountInInr").asDouble(0));
+                    // decimalValue() on a DecimalNode is the exact wire value. The platform ObjectMapper
+                    // enables USE_BIG_DECIMAL_FOR_FLOATS (see JacksonConfig) so this node is a
+                    // DecimalNode; without that the number is already a double before it gets here
+                    // and no call-site expression can recover the lost digits. A missing node yields
+                    // BigDecimal.ZERO, keeping the compareTo(ZERO) guard below meaningful.
+                    java.math.BigDecimal amountInInr = payloadNode.path("amountInInr").decimalValue();
                     String gatewayNameStr = payloadNode.path("gatewayName").asText(null);
                     String refundDestStr = payloadNode.path("refundDestination").asText("GATEWAY");
                     
@@ -101,12 +108,18 @@ public class PaymentEventConsumer {
             }
 
             // Mark as processed (At-Least-Once Pattern)
-            try {
-                if (!idempotencyKeyRepository.existsById(idempotencyKeyStr)) {
-                    idempotencyKeyRepository.save(new IdempotencyKey(idempotencyKeyStr));
+            // Claimed only when this consumer actually did something. It listens on payment-events
+            // alongside the four PAYMENT aggregates its own WebhookProcessingService publishes, and
+            // keying every message it ignores grew the table at the rate of all payment traffic.
+            // An event that performs no work has nothing to be idempotent about.
+            if (handled) {
+                try {
+                    if (!idempotencyKeyRepository.existsById(idempotencyKeyStr)) {
+                        idempotencyKeyRepository.save(new IdempotencyKey(idempotencyKeyStr));
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to save idempotency key {}, but external action was completed", idempotencyKeyStr, e);
                 }
-            } catch (Exception e) {
-                log.warn("Failed to save idempotency key {}, but external action was completed", idempotencyKeyStr, e);
             }
 
         } catch (RuntimeException e) {

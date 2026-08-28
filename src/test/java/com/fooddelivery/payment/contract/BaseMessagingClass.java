@@ -16,8 +16,21 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.context.annotation.Bean;
 
 @SpringBootTest(classes = BaseMessagingClass.TestConfig.class, webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration,org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration",
-        "spring.jpa.hibernate.ddl-auto=none",
+        // Exclusions live in `properties`, never on the class as @EnableAutoConfiguration(exclude=...):
+        // every service component-scans the whole com.fooddelivery tree, so a scanned configuration
+        // carrying exclusions applies them to OTHER tests' contexts -- which surfaced as unrelated
+        // tests failing with "No bean named 'entityManagerFactory'".
+        //
+        // The datasource and JPA exclusions were dropped on 2026-08-26 in favour of ddl-auto=none,
+        // which left this context building a DataSource and EntityManagerFactory that nothing in a
+        // messaging contract test uses. Restored: a contract test should build the least that
+        // exercises the contract.
+        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration",
     "spring.kafka.consumer.auto-offset-reset=earliest"
 })
 @org.springframework.test.context.ActiveProfiles("contract-test")
