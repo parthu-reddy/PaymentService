@@ -131,11 +131,12 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     @CircuitBreaker(name = "vyaparRefund", fallbackMethod = "refundFallback")
-    public boolean initiateRefund(String gatewayOrderId, java.math.BigDecimal amount, String reason) {
+    public boolean initiateRefund(String gatewayOrderId, String refundId, java.math.BigDecimal amount, String reason) {
         try {
             ObjectNode body = objectMapper.createObjectNode();
             body.put("order_id", gatewayOrderId);
             body.put("amount", amount);
+            body.put("idempotency_key", refundId);
             body.put("reason", reason);
 
             HttpRequest request = HttpRequest.newBuilder()
@@ -154,7 +155,7 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
         }
     }
 
-    public boolean refundFallback(String gatewayOrderId, java.math.BigDecimal amount, String reason, Throwable t) {
+    public boolean refundFallback(String gatewayOrderId, String refundId, java.math.BigDecimal amount, String reason, Throwable t) {
         log.error("CircuitBreaker fallback triggered for initiateRefund (order: {}, amount: {}). Reason: {}", gatewayOrderId, amount, t.getMessage());
         return false;
     }
@@ -179,7 +180,10 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
                 String status = jsonResponse.has("status") ? jsonResponse.get("status").asText() : "";
                 return switch (status.toUpperCase()) {
                     case "SUCCESS", "COMPLETED", "CAPTURED" -> com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
-                    case "PENDING", "CREATED" -> com.fooddelivery.common.constants.PaymentIntentStatus.PENDING;
+                    case "PENDING", "CREATED" -> {
+                        // PENDING_VERIFICATION (not implemented yet)
+                        yield com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED;
+                    }
                     case "FAILED", "CANCELLED", "EXPIRED" -> com.fooddelivery.common.constants.PaymentIntentStatus.FAILED;
                     default -> {
                         log.warn("Unknown payment status '{}' for order {}", status, gatewayOrderId);

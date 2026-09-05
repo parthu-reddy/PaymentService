@@ -47,9 +47,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "razorpay.key.id=dummy",
     "razorpay.key.secret=dummy",
     "razorpay.webhook.secret=dummy",
-    "vyapar.api.key=dummy",
-    "vyapar.api.secret=dummy",
-    "vyapar.webhook.secret=c0e76bf082a4b56243a56a9e9a5c9ed1f038a5af1ab8179d2b6ebb11e9ac864f"
+    "vyapargateway.api.key=dummy",
+    "vyapargateway.api.secret=dummy",
+    "vyapargateway.webhook.secret=c0e76bf082a4b56243a56a9e9a5c9ed1f038a5af1ab8179d2b6ebb11e9ac864f"
 })
 public class WebhookIntegrationTest {
 
@@ -128,7 +128,7 @@ public class WebhookIntegrationTest {
                       "entity": {
                         "order_id": "vyapar_test_123",
                         "status": "captured",
-                        "amount": 10000
+                        "amount": 100.00
                       }
                     }
                   },
@@ -136,11 +136,24 @@ public class WebhookIntegrationTest {
                 }
                 """;
 
+        String secret = "c0e76bf082a4b56243a56a9e9a5c9ed1f038a5af1ab8179d2b6ebb11e9ac864f";
+        javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+        javax.crypto.spec.SecretKeySpec secretKeySpec = new javax.crypto.spec.SecretKeySpec(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256");
+        mac.init(secretKeySpec);
+        byte[] computedHashBytes = mac.doFinal(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : computedHashBytes) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) hexString.append('0');
+            hexString.append(hex);
+        }
+        String validSignature = hexString.toString();
+
         mockMvc.perform(post("/api/v1/webhooks/vyapar")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload)
                 .header("Idempotency-Key", java.util.UUID.randomUUID().toString())
-                .header("X-VyaparGateway-Signature", "c0e76bf082a4b56243a56a9e9a5c9ed1f038a5af1ab8179d2b6ebb11e9ac864f"))
+                .header("X-VyaparGateway-Signature", validSignature))
                 .andExpect(status().isOk());
 
         long endTime = System.currentTimeMillis() + 5000;

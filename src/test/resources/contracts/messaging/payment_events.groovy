@@ -25,6 +25,8 @@ org.springframework.cloud.contract.spec.Contract.make {
             gatewayOrderId: $(producer(regex('.+'))),
             amount: 250.00,
             gatewayName: "RAZORPAY",
+            paymentMethod: "CARD",
+            paidAt: $(producer(regex('\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z'))),
             eventType: "PAYMENT_COMPLETED"
         ])
     }

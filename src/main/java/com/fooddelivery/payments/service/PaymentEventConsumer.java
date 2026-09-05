@@ -76,25 +76,35 @@ public class PaymentEventConsumer {
                     java.math.BigDecimal amountInInr = payloadNode.path("amountInInr").decimalValue();
                     String gatewayNameStr = payloadNode.path("gatewayName").asText(null);
                     String refundDestStr = payloadNode.path("refundDestination").asText("GATEWAY");
+                    String refundIdStr = payloadNode.path("refundId").asText(null);
                     
-                    if (gatewayOrderId != null && amountInInr.compareTo(java.math.BigDecimal.ZERO) > 0 && gatewayNameStr != null) {
+                    if (gatewayOrderId != null && amountInInr.compareTo(java.math.BigDecimal.ZERO) > 0 && gatewayNameStr != null && refundIdStr != null) {
                         try {
                             PaymentGateway gateway = PaymentGateway.valueOf(gatewayNameStr.toUpperCase());
                             
-                            if ("WALLET".equals(refundDestStr)) {
-                                log.info("Wallet refund requested. Bypassing gateway for order: {}", gatewayOrderId);
-                                webhookProcessingService.processWalletRefund(gatewayOrderId, amountInInr, gatewayNameStr);
-                            } else {
-                                log.info("Initiating refund for gatewayOrderId: {}, gateway: {}", gatewayOrderId, gateway);
-                                meterRegistry.counter("refunds.requested", "gateway", gatewayNameStr).increment();
-                                boolean success = orchestrator.initiateRefund(gateway, gatewayOrderId, amountInInr, "Order cancelled or rejected");
-                                if (success) {
-                                    log.info("Refund initiated successfully for gatewayOrderId: {}", gatewayOrderId);
-                                } else {
-                                    meterRegistry.counter("refunds.failed", "gateway", gatewayNameStr).increment();
-                                    log.error("Failed to initiate refund for gatewayOrderId: {}", gatewayOrderId);
-                                    throw new RuntimeException("Refund failed for gatewayOrderId: " + gatewayOrderId);
+                            // Enforce idempotency on refundId
+                            String refundIdempotencyKey = "refund_req:" + refundIdStr;
+                            if (idempotencyKeyRepository.existsById(refundIdempotencyKey)) {
+                                log.info("Duplicate refund request ignored: {}", refundIdStr);
+                                return; // Handled already
+                            }
+                            
+                            log.info("Initiating refund for gatewayOrderId: {}, gateway: {}, refundId: {}", gatewayOrderId, gateway, refundIdStr);
+                            meterRegistry.counter("refunds.requested", "gateway", gatewayNameStr).increment();
+                            boolean success = orchestrator.initiateRefund(gateway, gatewayOrderId, refundIdStr, amountInInr, "Order cancelled or rejected");
+                            if (success) {
+                                log.info("Refund initiated successfully for gatewayOrderId: {}", gatewayOrderId);
+                                try {
+                                    idempotencyKeyRepository.save(new IdempotencyKey(refundIdempotencyKey));
+                                } catch (Exception e) {
+                                    log.warn("Failed to save refund idempotency key {}, but refund was initiated", refundIdempotencyKey, e);
                                 }
+                            } else {
+                                meterRegistry.counter("refunds.failed", "gateway", gatewayNameStr).increment();
+                                log.error("Failed to initiate refund for gatewayOrderId: {}", gatewayOrderId);
+                                
+                                // Emit PAYMENT_REFUND_FAILED event via WebhookProcessingService (since we deleted processWalletRefund, we can reuse handleRefundFailure or write an outbox event)
+                                webhookProcessingService.handleRefundFailure(gatewayOrderId, refundIdStr, "Gateway rejected refund initiation");
                             }
                         } catch (IllegalArgumentException e) {
                             log.error("Invalid gateway name in refund requested event: {}", gatewayNameStr);

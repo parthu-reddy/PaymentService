@@ -66,6 +66,6 @@ public class PaymentReconciliationJobTest {
 
         job.reconcileStuckPayments();
 
-        verify(webhookProcessingService).handleSuccessfulPayment("ord_123");
+        verify(webhookProcessingService).handleSuccessfulPayment("ord_123", new BigDecimal("100.00"));
     }
 }

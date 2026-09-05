@@ -68,13 +68,13 @@ public class WebhookProcessingServiceTest {
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
+        objectMapper = new ObjectMapper().registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
         com.fooddelivery.payments.service.strategy.WebhookHandlerStrategy vyaparStub = new com.fooddelivery.payments.service.strategy.WebhookHandlerStrategy() {
             @Override
             public com.fooddelivery.common.enums.PaymentGateway getSupportedGateway() { return com.fooddelivery.common.enums.PaymentGateway.VYAPAR; }
             @Override
             public void handleEvent(String eventType, com.fasterxml.jackson.databind.JsonNode rootNode, com.fooddelivery.payments.service.strategy.PaymentActionDelegate delegate) {
-                delegate.handleSuccessfulPayment("ord_123");
+                delegate.handleSuccessfulPayment("ord_123", new BigDecimal("100.00"));
             }
         };
 

@@ -201,7 +201,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
     }
 
     @Override
-    public void handleSuccessfulPayment(String gatewayOrderId) {
+    public void handleSuccessfulPayment(String gatewayOrderId, java.math.BigDecimal paidAmount) {
         transactionTemplate.executeWithoutResult(status -> {
             Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
             if (intentOpt.isEmpty()) {
@@ -214,13 +214,22 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                 return;
             }
 
+            if (paidAmount != null && intent.getAmount().compareTo(paidAmount) != 0) {
+                log.warn("Payment amount mismatch for order {}: expected {}, received {}", intent.getOrderId(), intent.getAmount(), paidAmount);
+                meterRegistry.counter("payment.amount.mismatch", "gateway", intent.getGatewayName().name()).increment();
+                handleFailedPayment(gatewayOrderId, "AMOUNT_MISMATCH: expected " + intent.getAmount() + " but received " + paidAmount);
+                return;
+            }
+
             intent.setStatus(PaymentIntentStatus.SUCCESS);
                     
             PaymentSucceededEvent event = new PaymentSucceededEvent(
                     intent.getOrderId(),
                     intent.getGatewayOrderId(),
                     intent.getAmount(),
-                    intent.getGatewayName().name()
+                    intent.getGatewayName().name(),
+                    null,
+                    java.time.Instant.now()
             );
 
             paymentIntentRepository.save(intent);
@@ -326,7 +335,10 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                  throw new IllegalArgumentException("Refund amount must be strictly positive");
             }
             
-            BigDecimal currentRefund = intent.getAmountRefunded() != null ? intent.getAmountRefunded() : BigDecimal.ZERO;
+            if (intent.getAmountRefunded() == null) {
+                throw new IllegalStateException("PaymentIntent amountRefunded cannot be null for intent: " + intent.getId());
+            }
+            BigDecimal currentRefund = intent.getAmountRefunded();
             BigDecimal newTotalRefund = currentRefund.add(finalRefundAmount);
             if (newTotalRefund.compareTo(intent.getAmount()) > 0) {
                 log.error("CRITICAL: Incoming webhook refund amount {} would exceed original intent amount {}. Capping it.", finalRefundAmount, intent.getAmount());
@@ -349,7 +361,10 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
 
             paymentIntentRepository.save(intent);
             com.fooddelivery.payments.model.Transaction tx = txOpt.get();
-            BigDecimal txCurrentRefund = tx.getAmountRefunded() != null ? tx.getAmountRefunded() : BigDecimal.ZERO;
+            if (tx.getAmountRefunded() == null) {
+                throw new IllegalStateException("Transaction amountRefunded cannot be null for tx: " + tx.getId());
+            }
+            BigDecimal txCurrentRefund = tx.getAmountRefunded();
             tx.setAmountRefunded(txCurrentRefund.add(finalRefundAmount));
             transactionRepository.save(tx);
             
@@ -359,7 +374,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
             refundRecord.setAmount(finalRefundAmount);
             refundRecord.setReason("Webhook automated refund capture");
             refundRecord.setStatus(com.fooddelivery.common.enums.RefundStatus.COMPLETED);
-            refundRecord.setRefundDestination(com.fooddelivery.common.enums.RefundDestination.GATEWAY);
+            refundRecord.setRefundDestination(com.fooddelivery.common.enums.RefundDestination.ORIGINAL_METHOD);
             refundRepository.save(refundRecord);
 
             meterRegistry.counter("refunds.success", "gateway", intent.getGatewayName().name()).increment();
@@ -370,7 +385,10 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                         .gatewayOrderId(intent.getGatewayOrderId())
                         .amountRefunded(finalRefundAmount)
                         .gatewayName(intent.getGatewayName())
-                        .refundDestination(com.fooddelivery.common.enums.RefundDestination.GATEWAY)
+                        .refundDestination(com.fooddelivery.common.enums.RefundDestination.ORIGINAL_METHOD)
+                        .refundId(gatewayRefundId)
+                        .gatewayRefundId(gatewayRefundId)
+                        .status("COMPLETED")
                         .build();
                 
                 com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(refundEvent);
@@ -396,108 +414,54 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
         });
     }
 
-    /**
-     * Processes a wallet-routed refund. This bypasses the external payment gateway entirely
-     * and instead creates a Refund record with WALLET destination and emits a REFUND_GENERATED
-     * outbox event for the WalletService to credit the customer.
-     *
-     * @param gatewayOrderId the gateway order ID from the original payment
-     * @param amountInInr    the refund amount in INR (must be > 0)
-     * @param gatewayName    the name of the original gateway (for record-keeping only)
-     */
-    @Transactional
-    public void processWalletRefund(String gatewayOrderId, java.math.BigDecimal amountInInr, String gatewayName) {
-        if (gatewayOrderId == null || gatewayOrderId.isBlank()) {
-            throw new IllegalArgumentException("gatewayOrderId must not be null or blank for wallet refund");
+    @Override
+    public void handleRefundFailure(String gatewayOrderId, String gatewayRefundId, String failureReason) {
+        if (gatewayRefundId == null || gatewayRefundId.trim().isEmpty()) {
+            throw new IllegalArgumentException("gatewayRefundId must be provided for idempotency tracking");
         }
-        if (amountInInr.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Wallet refund amount must be strictly positive. Got: " + amountInInr);
-        }
-
-        BigDecimal refundAmount = amountInInr;
-
-        Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
-        if (intentOpt.isEmpty()) {
-            throw new IllegalStateException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId + ". Cannot process wallet refund.");
-        }
-
-        PaymentIntent intent = intentOpt.get();
-
-        // Cap refund to remaining refundable balance
-        BigDecimal currentRefund = intent.getAmountRefunded() != null ? intent.getAmountRefunded() : BigDecimal.ZERO;
-        BigDecimal remaining = intent.getAmount().subtract(currentRefund);
-        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
-            log.warn("PaymentIntent {} is already fully refunded. Skipping wallet refund.", intent.getId());
-            return;
-        }
-        if (refundAmount.compareTo(remaining) > 0) {
-            log.warn("Wallet refund amount {} exceeds remaining refundable balance {}. Capping.", refundAmount, remaining);
-            refundAmount = remaining;
-        }
-
-        BigDecimal newTotalRefund = currentRefund.add(refundAmount);
-        intent.setAmountRefunded(newTotalRefund);
-
-        if (newTotalRefund.compareTo(intent.getAmount()) >= 0) {
-            intent.setStatus(PaymentIntentStatus.REFUNDED);
-        } else {
-            intent.setStatus(PaymentIntentStatus.PARTIALLY_REFUNDED);
-        }
-        paymentIntentRepository.save(intent);
-
-        // Update transaction record
-        Optional<com.fooddelivery.payments.model.Transaction> txOpt = transactionRepository
-                .findLockedFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(intent.getId(), com.fooddelivery.common.enums.TransactionStatus.SUCCESS);
-        if (txOpt.isPresent()) {
-            com.fooddelivery.payments.model.Transaction tx = txOpt.get();
-            BigDecimal txCurrentRefund = tx.getAmountRefunded() != null ? tx.getAmountRefunded() : BigDecimal.ZERO;
-            tx.setAmountRefunded(txCurrentRefund.add(refundAmount));
-            transactionRepository.save(tx);
-
-            // Create Refund record with WALLET destination
-            Refund refundRecord = new Refund();
-            refundRecord.setTransaction(tx);
-            refundRecord.setGatewayRefundId("WALLET_" + java.util.UUID.randomUUID());
-            refundRecord.setAmount(refundAmount);
-            refundRecord.setReason("Wallet credit refund (bypassed gateway)");
-            refundRecord.setStatus(com.fooddelivery.common.enums.RefundStatus.COMPLETED);
-            refundRecord.setRefundDestination(com.fooddelivery.common.enums.RefundDestination.WALLET);
-            refundRepository.save(refundRecord);
-        } else {
-            log.warn("No successful transaction found for PaymentIntent {}. Creating Refund record without transaction link.", intent.getId());
-        }
-
-        meterRegistry.counter("refunds.wallet.success", "gateway", gatewayName).increment();
-
-        // Emit REFUND_GENERATED outbox event for WalletService
-        try {
-            com.fooddelivery.common.event.PaymentRefundedEvent refundEvent = com.fooddelivery.common.event.PaymentRefundedEvent.builder()
-                    .orderId(intent.getOrderId().toString())
-                    .gatewayOrderId(intent.getGatewayOrderId())
-                    .amountRefunded(refundAmount)
-                    .gatewayName(intent.getGatewayName())
-                    .refundDestination(com.fooddelivery.common.enums.RefundDestination.WALLET)
-                    .build();
-
-            com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(refundEvent);
-            payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED.name());
-
-            com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
-                    .id(java.util.UUID.randomUUID())
-                    .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
-                    .aggregateId(intent.getOrderId().toString())
-                    .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED)
-                    .payload(objectMapper.writeValueAsString(payloadNode))
-                    .createdAt(java.time.LocalDateTime.now())
-                    .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
-                    .build();
-            outboxEventRepository.save(outbox);
-            log.info("Wallet refund event emitted for orderId: {}, amount: {}", intent.getOrderId(), refundAmount);
-        } catch (Exception e) {
-            log.error("Failed to emit wallet refund event for gatewayOrderId: {}", gatewayOrderId, e);
-            throw new RuntimeException("Failed to save wallet refund event to Outbox", e);
-        }
+        
+        transactionTemplate.executeWithoutResult(status -> {
+            Optional<PaymentIntent> intentOpt = paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId);
+            if (intentOpt.isEmpty()) {
+                throw new IllegalStateException("PaymentIntent not found for gatewayOrderId: " + gatewayOrderId);
+            }
+            
+            PaymentIntent intent = intentOpt.get();
+            meterRegistry.counter("refunds.failure", "gateway", intent.getGatewayName().name()).increment();
+            
+            try {
+                com.fooddelivery.common.event.PaymentRefundedEvent refundEvent = com.fooddelivery.common.event.PaymentRefundedEvent.builder()
+                        .orderId(intent.getOrderId().toString())
+                        .gatewayOrderId(intent.getGatewayOrderId())
+                        .amountRefunded(BigDecimal.ZERO)
+                        .gatewayName(intent.getGatewayName())
+                        .refundDestination(com.fooddelivery.common.enums.RefundDestination.ORIGINAL_METHOD)
+                        .refundId(gatewayRefundId)
+                        .gatewayRefundId(gatewayRefundId)
+                        .status("FAILED")
+                        .failureReason(failureReason)
+                        .build();
+                
+                com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(refundEvent);
+                payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED.name());
+                
+                com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
+                        .id(java.util.UUID.randomUUID())
+                        .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
+                        .aggregateId(intent.getOrderId().toString())
+                        .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED)
+                        .payload(objectMapper.writeValueAsString(payloadNode))
+                        .createdAt(java.time.LocalDateTime.now())
+                        .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
+                        .build();
+                outboxEventRepository.save(outbox);
+            } catch (Exception e) {
+                log.error("Failed to serialize or save PaymentRefundedEvent for failed refund: " + gatewayOrderId, e);
+                throw new RuntimeException("Failed to save PaymentRefundedEvent to Outbox", e);
+            }
+        });
     }
+
 
     private void maskNode(JsonNode node) {
         if (node.isObject()) {

@@ -7,3 +7,11 @@ spring:
     allow-bean-definition-overriding: true
   flyway:
     enabled: false
+eureka:
+  client:
+    enabled: false
+payments:
+  routing:
+    CARD: RAZORPAY
+    UPI: CASHFREE
+    WALLET: VYAPAR

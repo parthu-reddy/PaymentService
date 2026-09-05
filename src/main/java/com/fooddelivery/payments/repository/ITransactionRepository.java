@@ -15,4 +15,7 @@ public interface ITransactionRepository extends JpaRepository<Transaction, UUID>
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("SELECT t FROM Transaction t WHERE t.paymentIntent.id = :paymentIntentId AND t.status = :status ORDER BY t.createdAt DESC LIMIT 1")
     Optional<Transaction> findLockedFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(@org.springframework.data.repository.query.Param("paymentIntentId") UUID paymentIntentId, @org.springframework.data.repository.query.Param("status") com.fooddelivery.common.enums.TransactionStatus status);
+    
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.status = 'SUCCESS' AND CAST(t.createdAt AS date) = :date")
+    java.math.BigDecimal sumCapturedAmountByDate(@org.springframework.data.repository.query.Param("date") java.time.LocalDate date);
 }

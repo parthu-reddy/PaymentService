@@ -38,6 +38,7 @@ CREATE TABLE transactions (
 CREATE TABLE refunds (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_id UUID NOT NULL REFERENCES transactions(id),
+    internal_refund_id UUID UNIQUE,
     gateway_refund_id VARCHAR(255) UNIQUE,
     amount DECIMAL(15,2) NOT NULL CHECK (amount > 0),
     reason VARCHAR(255) NOT NULL,

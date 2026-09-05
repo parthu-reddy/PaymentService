@@ -68,12 +68,12 @@ class PaymentGatewayOrchestratorTest {
 
     @Test
     void initiateRefund_ShouldDelegateToStrategy() {
-        when(mockStrategy.initiateRefund("GATEWAY_ORDER_123", new java.math.BigDecimal("100.0"), "Customer Request"))
+        when(mockStrategy.initiateRefund("GATEWAY_ORDER_123", "REFUND_123", new java.math.BigDecimal("100.0"), "Customer Request"))
                 .thenReturn(true);
 
-        boolean result = orchestrator.initiateRefund(PaymentGateway.VYAPAR, "GATEWAY_ORDER_123", new java.math.BigDecimal("100.0"), "Customer Request");
+        boolean result = orchestrator.initiateRefund(PaymentGateway.VYAPAR, "GATEWAY_ORDER_123", "REFUND_123", new java.math.BigDecimal("100.0"), "Customer Request");
 
         assertThat(result).isTrue();
-        verify(mockStrategy).initiateRefund("GATEWAY_ORDER_123", new java.math.BigDecimal("100.0"), "Customer Request");
+        verify(mockStrategy).initiateRefund("GATEWAY_ORDER_123", "REFUND_123", new java.math.BigDecimal("100.0"), "Customer Request");
     }
 }

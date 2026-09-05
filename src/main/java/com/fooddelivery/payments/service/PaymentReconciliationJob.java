@@ -63,12 +63,12 @@ public class PaymentReconciliationJob {
                     PaymentIntentStatus status = orchestrator.getStrategy(intent.getGatewayName())
                             .verifyStatus(intent.getGatewayOrderId());
 
-                    if (status == PaymentIntentStatus.SUCCESS || 
-                        status == PaymentIntentStatus.CAPTURED || 
-                        status == PaymentIntentStatus.PAID) {
+                    if (status == PaymentIntentStatus.INITIATED) { // treated as PENDING_VERIFICATION for mocks and vyapar
+                        log.info("Reconciliation intent {} is pending verification", intent.getId());
+                    } else if (status == PaymentIntentStatus.SUCCESS) {
                         
                         log.info("Payment intent {} was actually successful on gateway. Triggering fulfillment.", intent.getId());
-                        webhookProcessingService.handleSuccessfulPayment(intent.getGatewayOrderId());
+                        webhookProcessingService.handleSuccessfulPayment(intent.getGatewayOrderId(), intent.getAmount());
                     } else if (status == PaymentIntentStatus.FAILED) {
                         webhookProcessingService.handleFailedPayment(intent.getGatewayOrderId(), "Reconciliation determined payment failed");
                         log.info("Reconciled payment intent to FAILED: {}", intent.getId());

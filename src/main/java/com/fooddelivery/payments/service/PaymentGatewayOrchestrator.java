@@ -50,10 +50,10 @@ public class PaymentGatewayOrchestrator {
     }
 
     @io.micrometer.core.annotation.Timed(value = "payment.gateway.refund.initiate", description = "Time taken to initiate refund at gateway")
-    public boolean initiateRefund(PaymentGateway gatewayName, String gatewayOrderId, java.math.BigDecimal amount, String reason) {
+    public boolean initiateRefund(PaymentGateway gatewayName, String gatewayOrderId, String refundId, java.math.BigDecimal amount, String reason) {
         log.info("Initiating refund for order: {} using gateway: {}", gatewayOrderId, gatewayName);
         try {
-            boolean success = getStrategy(gatewayName).initiateRefund(gatewayOrderId, amount, reason);
+            boolean success = getStrategy(gatewayName).initiateRefund(gatewayOrderId, refundId, amount, reason);
             if (success) {
                 log.info("Successfully initiated refund for order: {} using gateway: {}", gatewayOrderId, gatewayName);
             } else {

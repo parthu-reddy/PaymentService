@@ -10,4 +10,7 @@ import java.util.Optional;
 @Repository
 public interface IRefundRepository extends JpaRepository<Refund, UUID> {
     Optional<Refund> findByGatewayRefundId(String gatewayRefundId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(r.amount), 0) FROM Refund r WHERE r.status = 'COMPLETED' AND CAST(r.createdAt AS date) = :date")
+    java.math.BigDecimal sumRefundedAmountByDate(@org.springframework.data.repository.query.Param("date") java.time.LocalDate date);
 }

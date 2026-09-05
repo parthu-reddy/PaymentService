@@ -38,7 +38,7 @@ class PaymentEventConsumerAmountTest {
     @Test
     void refundAmountKeepsItsWireScale() throws Exception {
         PaymentGatewayOrchestrator orchestrator = mock(PaymentGatewayOrchestrator.class);
-        when(orchestrator.initiateRefund(any(), anyString(), any(), anyString())).thenReturn(true);
+        when(orchestrator.initiateRefund(any(), anyString(), anyString(), any(), anyString())).thenReturn(true);
         IIdempotencyKeyRepository keys = mock(IIdempotencyKeyRepository.class);
         when(keys.existsById(anyString())).thenReturn(false);
 
@@ -49,11 +49,11 @@ class PaymentEventConsumerAmountTest {
         // A value a double cannot hold: as a DoubleNode this becomes 12345678901234568.
         String exact = "12345678901234567.89";
         String payload = "{\"eventType\":\"PAYMENT_REFUND_REQUESTED\",\"gatewayOrderId\":\"pay_1\","
-                + "\"amountInInr\":" + exact + ",\"gatewayName\":\"RAZORPAY\",\"refundDestination\":\"GATEWAY\"}";
+                + "\"amountInInr\":" + exact + ",\"gatewayName\":\"RAZORPAY\",\"refundDestination\":\"GATEWAY\",\"refundId\":\"ref_123\"}";
         consumer.consumeOrderEvents(payload, Map.of());
 
         ArgumentCaptor<BigDecimal> amount = ArgumentCaptor.forClass(BigDecimal.class);
-        verify(orchestrator).initiateRefund(eq(PaymentGateway.RAZORPAY), eq("pay_1"), amount.capture(), anyString());
+        verify(orchestrator).initiateRefund(eq(PaymentGateway.RAZORPAY), eq("pay_1"), anyString(), amount.capture(), anyString());
 
         // compareTo for value -- BigDecimal.equals compares scale and would pass for the wrong reason
         assertThat(amount.getValue()).usingComparator(BigDecimal::compareTo)

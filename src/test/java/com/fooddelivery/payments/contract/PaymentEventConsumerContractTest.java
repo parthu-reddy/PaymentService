@@ -74,13 +74,13 @@ class PaymentEventConsumerContractTest {
     @Test
     void acceptsTheProducerPayloadAndInitiatesRefund() {
         // We mock orchestrator returning true
-        when(orchestrator.initiateRefund(any(), anyString(), any(), anyString())).thenReturn(true);
+        when(orchestrator.initiateRefund(any(), anyString(), anyString(), any(), anyString())).thenReturn(true);
 
         // Trigger the stub for order_payment_refund_requested
         stubTrigger.trigger("order_payment_refund_requested");
 
         // Verify that the consumer intercepts it, extracts the gatewayOrderId and calls the orchestrator
         await().atMost(15, TimeUnit.SECONDS).untilAsserted(() ->
-                verify(orchestrator).initiateRefund(any(), eq("pay_12345"), any(), anyString()));
+                verify(orchestrator).initiateRefund(any(), eq("pay_12345"), anyString(), any(), anyString()));
     }
 }

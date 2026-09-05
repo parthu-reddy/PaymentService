@@ -102,11 +102,11 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
 
     @Override
     @CircuitBreaker(name = "cashfreeRefund", fallbackMethod = "refundFallback")
-    public boolean initiateRefund(String gatewayOrderId, java.math.BigDecimal amount, String reason) {
+    public boolean initiateRefund(String gatewayOrderId, String refundId, java.math.BigDecimal amount, String reason) {
         try {
             ObjectNode body = objectMapper.createObjectNode();
             body.put("refund_amount", amount);
-            body.put("refund_id", "refund_" + UUID.randomUUID().toString().substring(0, 8));
+            body.put("refund_id", refundId);
             body.put("refund_note", reason != null ? reason : "Refund processing");
 
             HttpRequest request = HttpRequest.newBuilder()
@@ -141,6 +141,36 @@ public class CashfreeStrategy implements IPaymentGatewayStrategy {
 
     @Override
     public com.fooddelivery.common.constants.PaymentIntentStatus verifyStatus(String gatewayOrderId) {
-        return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.cashfree.com/pg/orders/" + gatewayOrderId))
+                    .header("x-client-id", cfClientId)
+                    .header("x-client-secret", cfClientSecret)
+                    .header("x-api-version", "2023-08-01")
+                    .GET()
+                    .timeout(Duration.ofSeconds(10))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(response.body());
+                String status = root.path("order_status").asText();
+                return mapStatus(status);
+            }
+            return com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED;
+        } catch (Exception e) {
+            log.error("Failed to verify status with Cashfree for order {}", gatewayOrderId, e);
+            return com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED;
+        }
+    }
+
+    public com.fooddelivery.common.constants.PaymentIntentStatus mapStatus(String status) {
+        if ("PAID".equalsIgnoreCase(status)) {
+            return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
+        } else if ("ACTIVE".equalsIgnoreCase(status)) {
+            return com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED;
+        } else {
+            return com.fooddelivery.common.constants.PaymentIntentStatus.FAILED;
+        }
     }
 }

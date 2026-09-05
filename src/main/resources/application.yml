@@ -20,3 +20,12 @@ resilience4j:
         baseConfig: default
       cashfreeRefund:
         baseConfig: default
+
+payments:
+  routing:
+    CARD: RAZORPAY
+    UPI: CASHFREE
+    WALLET: VYAPAR
+idempotency:
+  sweep:
+    retention-days: 400

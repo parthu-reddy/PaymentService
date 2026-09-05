@@ -14,6 +14,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import jakarta.annotation.PreDestroy;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @Service
 // "local" was missing while its two siblings had it, so under SPRING_PROFILES_ACTIVE=local no
@@ -25,6 +27,8 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     @Value("${vyapargateway.webhook.secret:test_vyapar_webhook_secret}")
     private String webhookSecret;
+    
+    private final ObjectMapper objectMapper = new ObjectMapper();
     
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
 
@@ -51,7 +55,7 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
             try {
                 log.info("MockVyaparGatewayStrategy scheduled task started for gatewayOrderId: {}", gatewayOrderId);
                 log.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
-                webhookService.handleSuccessfulPayment(gatewayOrderId);
+                webhookService.handleSuccessfulPayment(gatewayOrderId, context.getAmountInInr());
                 log.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
             } catch (Throwable e) {
                 log.error("Error auto-triggering payment success in MockVyaparGatewayStrategy task", e);
@@ -86,17 +90,17 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
-    public boolean initiateRefund(String gatewayOrderId, java.math.BigDecimal amount, String reason) {
+    public boolean initiateRefund(String gatewayOrderId, String refundId, java.math.BigDecimal amount, String reason) {
         log.info("[DEBUG PROFILE] Mocking Vyapar Gateway initiate refund for gateway order: {}", gatewayOrderId);
         
         scheduler.schedule(() -> {
             try {
                 log.info("MockVyaparGatewayStrategy refund scheduled task started for gatewayOrderId: {}", gatewayOrderId);
                 
-                com.fasterxml.jackson.databind.node.ObjectNode payload = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
-                payload.put("amount_refunded", amount);
+                ObjectNode payload = objectMapper.createObjectNode();
+                payload.put("amount", amount);
                 
-                String mockRefundId = "mock_rfnd_" + java.util.UUID.randomUUID().toString().substring(0, 8);
+                String mockRefundId = refundId;
                 log.info("Calling webhookService.handleRefundSuccess for gatewayOrderId: {} with refundId: {}", gatewayOrderId, mockRefundId);
                 webhookService.handleRefundSuccess(gatewayOrderId, mockRefundId, payload);
                 log.info("Successfully called webhookService.handleRefundSuccess for gatewayOrderId: {}", gatewayOrderId);
@@ -110,6 +114,7 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     public com.fooddelivery.common.constants.PaymentIntentStatus verifyStatus(String gatewayOrderId) {
-        return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
+        // PENDING_VERIFICATION
+        return com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED;
     }
 }

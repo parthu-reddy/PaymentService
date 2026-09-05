@@ -23,11 +23,14 @@ public class Refund extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private RefundStatus status = RefundStatus.PENDING;
+    private RefundStatus status = RefundStatus.REQUESTED;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "refund_destination")
     private com.fooddelivery.common.enums.RefundDestination refundDestination;
+
+    @Column(name = "internal_refund_id", unique = true)
+    private java.util.UUID internalRefundId;
 
     public Transaction getTransaction() {
         return this.transaction;
@@ -75,6 +78,14 @@ public class Refund extends BaseEntity {
 
     public void setRefundDestination(com.fooddelivery.common.enums.RefundDestination refundDestination) {
         this.refundDestination = refundDestination;
+    }
+
+    public java.util.UUID getInternalRefundId() {
+        return this.internalRefundId;
+    }
+
+    public void setInternalRefundId(java.util.UUID internalRefundId) {
+        this.internalRefundId = internalRefundId;
     }
 
 }

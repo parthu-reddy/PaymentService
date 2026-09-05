@@ -27,5 +27,5 @@ public interface IPaymentGatewayStrategy {
     /**
      * Initiates a refund on the gateway.
      */
-    boolean initiateRefund(String gatewayOrderId, java.math.BigDecimal amount, String reason);
+    boolean initiateRefund(String gatewayOrderId, String refundId, java.math.BigDecimal amount, String reason);
 }

@@ -54,7 +54,7 @@ public class MockRazorpayStrategy implements IPaymentGatewayStrategy {
             try {
                 log.info("MockRazorpayStrategy scheduled task started for gatewayOrderId: {}", gatewayOrderId);
                 log.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
-                webhookService.handleSuccessfulPayment(gatewayOrderId);
+                webhookService.handleSuccessfulPayment(gatewayOrderId, context.getAmountInInr());
                 log.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
             } catch (Throwable e) {
                 log.error("Error auto-triggering payment success in MockRazorpayStrategy task", e);
@@ -70,7 +70,7 @@ public class MockRazorpayStrategy implements IPaymentGatewayStrategy {
     }
 
     @Override
-    public boolean initiateRefund(String gatewayOrderId, java.math.BigDecimal amount, String reason) {
+    public boolean initiateRefund(String gatewayOrderId, String refundId, java.math.BigDecimal amount, String reason) {
         log.info("[DEBUG PROFILE] Mocking Razorpay Gateway initiate refund for gateway order: {}", gatewayOrderId);
         
         scheduler.schedule(() -> {
@@ -78,9 +78,19 @@ public class MockRazorpayStrategy implements IPaymentGatewayStrategy {
                 log.info("MockRazorpayStrategy refund scheduled task started for gatewayOrderId: {}", gatewayOrderId);
                 
                 ObjectNode payload = objectMapper.createObjectNode();
-                payload.put("amount_refunded", amount);
                 
-                String mockRefundId = "mock_rfnd_" + java.util.UUID.randomUUID().toString().substring(0, 8);
+                ObjectNode payloadWrapper = objectMapper.createObjectNode();
+                
+                ObjectNode paymentNode = objectMapper.createObjectNode();
+                
+                ObjectNode entityNode = objectMapper.createObjectNode();
+                entityNode.put("amount_refunded", amount.multiply(new java.math.BigDecimal("100")).intValue());
+                
+                paymentNode.set("entity", entityNode);
+                payloadWrapper.set("payment", paymentNode);
+                payload.set("payload", payloadWrapper);
+                
+                String mockRefundId = refundId;
                 log.info("Calling webhookService.handleRefundSuccess for gatewayOrderId: {} with refundId: {}", gatewayOrderId, mockRefundId);
                 webhookService.handleRefundSuccess(gatewayOrderId, mockRefundId, payload);
                 log.info("Successfully called webhookService.handleRefundSuccess for gatewayOrderId: {}", gatewayOrderId);
@@ -94,6 +104,7 @@ public class MockRazorpayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     public com.fooddelivery.common.constants.PaymentIntentStatus verifyStatus(String gatewayOrderId) {
-        return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
+        // PENDING_VERIFICATION
+        return com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED;
     }
 }

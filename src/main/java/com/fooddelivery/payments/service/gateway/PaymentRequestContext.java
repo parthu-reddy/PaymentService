@@ -9,6 +9,7 @@ public class PaymentRequestContext {
     private BigDecimal amountInInr;
     private String receiptRef;
     private String customerPhone;
+    private com.fooddelivery.common.enums.PaymentMethod paymentMethod;
 
     public String getInternalOrderId() {
         return this.internalOrderId;
@@ -26,6 +27,10 @@ public class PaymentRequestContext {
         return this.customerPhone;
     }
 
+    public com.fooddelivery.common.enums.PaymentMethod getPaymentMethod() {
+        return this.paymentMethod;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -35,6 +40,7 @@ public class PaymentRequestContext {
         private BigDecimal amountInInr;
         private String receiptRef;
         private String customerPhone;
+        private com.fooddelivery.common.enums.PaymentMethod paymentMethod;
 
         public Builder internalOrderId(String internalOrderId) {
             this.internalOrderId = internalOrderId;
@@ -56,12 +62,18 @@ public class PaymentRequestContext {
             return this;
         }
 
+        public Builder paymentMethod(com.fooddelivery.common.enums.PaymentMethod paymentMethod) {
+            this.paymentMethod = paymentMethod;
+            return this;
+        }
+
         public PaymentRequestContext build() {
             PaymentRequestContext ctx = new PaymentRequestContext();
             ctx.internalOrderId = this.internalOrderId;
             ctx.amountInInr = this.amountInInr;
             ctx.receiptRef = this.receiptRef;
             ctx.customerPhone = this.customerPhone;
+            ctx.paymentMethod = this.paymentMethod;
             return ctx;
         }
     }

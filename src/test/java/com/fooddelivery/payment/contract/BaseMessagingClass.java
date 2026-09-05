@@ -72,7 +72,7 @@ public abstract class BaseMessagingClass {
         String orderId = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
         com.fooddelivery.common.event.PaymentSucceededEvent event =
                 new com.fooddelivery.common.event.PaymentSucceededEvent(
-                        orderId, "order_RZP123456", new java.math.BigDecimal("250.00"), "RAZORPAY");
+                        orderId, "order_RZP123456", new java.math.BigDecimal("250.00"), "RAZORPAY", com.fooddelivery.common.enums.PaymentMethod.CARD, java.time.Instant.now());
         com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
         payloadNode.put("eventType",
                 com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED.name());
@@ -109,7 +109,7 @@ public abstract class BaseMessagingClass {
         String orderId = "WALLET_3e14926d-0c98-5840-abcd-37ec439ddc25";
         com.fooddelivery.common.event.PaymentSucceededEvent event =
                 new com.fooddelivery.common.event.PaymentSucceededEvent(
-                        orderId, "order_RZP654321", new java.math.BigDecimal("250.00"), "RAZORPAY");
+                        orderId, "order_RZP654321", new java.math.BigDecimal("250.00"), "RAZORPAY", com.fooddelivery.common.enums.PaymentMethod.CARD, java.time.Instant.now());
         com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
         payloadNode.put("eventType",
                 com.fooddelivery.common.constants.EventType.AD_WALLET_TOPUP_COMPLETED.name());

@@ -22,17 +22,22 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RestController
 @RequestMapping("/api/v1/payments")
 @CrossOrigin(origins = "${cors.allowed-origins:*}") // Allows cross-origin requests from configured domains
-@PreAuthorize("isAuthenticated()")
+@PreAuthorize("hasAnyRole('SERVICE','ADMIN')")
 @lombok.extern.slf4j.Slf4j
 public class PaymentController {
 
     private final PaymentGatewayOrchestrator orchestrator;
     private final com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository;
+    private final com.fooddelivery.payments.config.PaymentRoutingConfig routingConfig;
 
     @Autowired
-    public PaymentController(PaymentGatewayOrchestrator orchestrator, com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository) {
+    public PaymentController(
+            PaymentGatewayOrchestrator orchestrator,
+            com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository,
+            com.fooddelivery.payments.config.PaymentRoutingConfig routingConfig) {
         this.orchestrator = orchestrator;
         this.paymentIntentRepository = paymentIntentRepository;
+        this.routingConfig = routingConfig;
     }
 
     public static class CreateOrderRequest {
@@ -45,17 +50,37 @@ public class PaymentController {
         public BigDecimal amountInInr;
 
         public String customerPhone;
+
+        @NotNull(message = "paymentMethod cannot be null")
+        public com.fooddelivery.common.enums.PaymentMethod paymentMethod;
     }
 
     @PostMapping("/create-order")
     public ResponseEntity<String> createOrder(
-            @RequestParam PaymentGateway gateway,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody CreateOrderRequest request) {
         try {
+            String effectiveIdempotencyKey = idempotencyKey != null ? idempotencyKey : request.internalOrderId;
+
+            PaymentGateway gateway = routingConfig.getGatewayForMethod(request.paymentMethod);
+            if (gateway == null) {
+                return ResponseEntity.badRequest().body("Unsupported payment method: " + request.paymentMethod);
+            }
+
+            java.util.Optional<com.fooddelivery.payments.model.PaymentIntent> existingIntent = paymentIntentRepository.findByIdempotencyKey(effectiveIdempotencyKey);
+            if (existingIntent.isPresent()) {
+                com.fooddelivery.payments.model.PaymentIntent intent = existingIntent.get();
+                if (!intent.getGatewayName().equals(gateway)) {
+                    return ResponseEntity.badRequest().body("Order already initiated with different gateway: " + intent.getGatewayName());
+                }
+                return ResponseEntity.ok(intent.getGatewayOrderId());
+            }
+
             PaymentRequestContext context = PaymentRequestContext.builder()
                 .internalOrderId(request.internalOrderId)
                 .amountInInr(request.amountInInr)
                 .customerPhone(request.customerPhone)
+                .paymentMethod(request.paymentMethod)
                 .build();
             
             String intentOrOrderId = orchestrator.createOrder(gateway, context);
@@ -65,7 +90,7 @@ public class PaymentController {
             intent.setGatewayName(gateway);
             intent.setGatewayOrderId(intentOrOrderId);
             intent.setAmount(request.amountInInr);
-            intent.setIdempotencyKey(UUID.randomUUID().toString());
+            intent.setIdempotencyKey(effectiveIdempotencyKey);
             paymentIntentRepository.save(intent);
 
             return ResponseEntity.ok(intentOrOrderId);
@@ -79,6 +104,9 @@ public class PaymentController {
     public static class RefundRequest {
         @NotNull(message = "gatewayOrderId cannot be null")
         public String gatewayOrderId;
+
+        @NotNull(message = "refundId cannot be null")
+        public String refundId;
 
         @NotNull(message = "amountInInr cannot be null")
         @Positive(message = "amountInInr must be greater than zero")
@@ -95,6 +123,7 @@ public class PaymentController {
             boolean success = orchestrator.initiateRefund(
                     gateway,
                     request.gatewayOrderId,
+                    request.refundId,
                     request.amountInInr,
                     request.reason
             );
@@ -110,10 +139,4 @@ public class PaymentController {
         }
     }
 
-    @GetMapping("/status")
-    public ResponseEntity<java.util.Map<String, Object>> getPaymentStatus(@RequestParam("orderId") String orderId) {
-        return paymentIntentRepository.findByGatewayOrderId(orderId)
-            .map(intent -> ResponseEntity.ok((java.util.Map<String, Object>) java.util.Collections.<String, Object>singletonMap("status", intent.getStatus().name())))
-            .orElseGet(() -> ResponseEntity.notFound().build());
-    }
 }

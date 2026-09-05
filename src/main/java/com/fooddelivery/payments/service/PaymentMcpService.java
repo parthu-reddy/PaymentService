@@ -96,23 +96,4 @@ public class PaymentMcpService {
         }
     }
 
-    @Tool(description = "Create a payment order. Provide gateway name (e.g. RAZORPAY) and JSON string of CreateOrderRequest (internalOrderId, amountInInr, customerPhone).")
-    public String createOrder(String gateway, String requestJson) {
-        try {
-            PaymentController.CreateOrderRequest req = objectMapper.readValue(requestJson, PaymentController.CreateOrderRequest.class);
-            return objectMapper.writeValueAsString(paymentController.createOrder(PaymentGateway.valueOf(gateway.toUpperCase()), req).getBody());
-        } catch (Exception e) {
-            return "Error: " + e.getMessage();
-        }
-    }
-
-    @Tool(description = "Refund a payment order. Provide gateway name and JSON string of RefundRequest (gatewayOrderId, amountInInr, reason).")
-    public String refundOrder(String gateway, String requestJson) {
-        try {
-            PaymentController.RefundRequest req = objectMapper.readValue(requestJson, PaymentController.RefundRequest.class);
-            return objectMapper.writeValueAsString(paymentController.refundOrder(PaymentGateway.valueOf(gateway.toUpperCase()), req).getBody());
-        } catch (Exception e) {
-            return "Error: " + e.getMessage();
-        }
-    }
 }

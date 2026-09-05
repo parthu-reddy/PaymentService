@@ -15,6 +15,7 @@ import org.springframework.data.repository.query.Param;
 @Repository
 public interface IPaymentIntentRepository extends JpaRepository<PaymentIntent, UUID> {
     Optional<PaymentIntent> findByGatewayOrderId(String gatewayOrderId);
+    Optional<PaymentIntent> findByOrderId(String orderId);
     
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM PaymentIntent p WHERE p.gatewayOrderId = :gatewayOrderId")

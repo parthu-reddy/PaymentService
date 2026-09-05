@@ -12,6 +12,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 
+import com.fooddelivery.payments.repository.IWebhookDeliveryRepository;
+import com.fooddelivery.payments.model.WebhookDelivery;
+import com.fooddelivery.payments.service.WebhookProcessingService;
+import com.fooddelivery.payments.model.enums.DeliveryStatus;
+
 import com.fooddelivery.common.outbox.entity.OutboxEventEntity;
 import com.fooddelivery.common.outbox.repository.OutboxEventRepository;
 import com.fooddelivery.common.enums.OutboxStatus;
@@ -26,11 +31,15 @@ public class AdminDlqController {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final OutboxEventRepository outboxEventRepository;
+    private final IWebhookDeliveryRepository webhookDeliveryRepository;
+    private final WebhookProcessingService webhookProcessingService;
 
-    public AdminDlqController(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper, OutboxEventRepository outboxEventRepository) {
+    public AdminDlqController(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper, OutboxEventRepository outboxEventRepository, IWebhookDeliveryRepository webhookDeliveryRepository, WebhookProcessingService webhookProcessingService) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
         this.outboxEventRepository = outboxEventRepository;
+        this.webhookDeliveryRepository = webhookDeliveryRepository;
+        this.webhookProcessingService = webhookProcessingService;
     }
 
     /**
@@ -119,6 +128,40 @@ public class AdminDlqController {
         } catch (Exception e) {
             log.error("Failed to retry outbox DLQ event", e);
             return ResponseEntity.badRequest().body(ApiResponse.error("Failed to retry outbox event: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/webhooks")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<org.springframework.data.domain.Page<WebhookDelivery>> getFailedWebhooks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<WebhookDelivery> failedWebhooks = 
+            webhookDeliveryRepository.findByProcessingStatus(DeliveryStatus.FAILED, pageable);
+            
+        return ResponseEntity.ok(failedWebhooks);
+    }
+
+    @PostMapping("/webhooks/{eventId}/retry")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<String>> retryWebhookEvent(@PathVariable String eventId) {
+        try {
+            WebhookDelivery event = webhookDeliveryRepository.findByEventId(eventId)
+                    .orElseThrow(() -> new IllegalArgumentException("Webhook event not found: " + eventId));
+            
+            if (event.getProcessingStatus() != DeliveryStatus.FAILED) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("Webhook can only be retried if status is FAILED. Current status: " + event.getProcessingStatus()));
+            }
+            
+            log.info("Admin manually retrying webhook DLQ event: {}", eventId);
+            webhookProcessingService.retryWebhook(event);
+            
+            return ResponseEntity.ok(ApiResponse.success("Webhook event retried successfully", "Webhook processed without errors"));
+        } catch (Exception e) {
+            log.error("Failed to retry webhook DLQ event", e);
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to retry webhook event: " + e.getMessage()));
         }
     }
 }

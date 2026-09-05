@@ -35,7 +35,9 @@ public abstract class ContractTestBase {
 
         when(orchestrator.createOrder(any(), any())).thenReturn("PAYMENT_LINK_URL");
 
-        PaymentController paymentController = new PaymentController(orchestrator, repository);
+        com.fooddelivery.payments.config.PaymentRoutingConfig routingConfig = Mockito.mock(com.fooddelivery.payments.config.PaymentRoutingConfig.class);
+        when(routingConfig.getGatewayForMethod(any())).thenReturn(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY);
+        PaymentController paymentController = new PaymentController(orchestrator, repository, routingConfig);
         RestAssuredMockMvc.standaloneSetup(paymentController);
     }
 }

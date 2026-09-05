@@ -80,13 +80,14 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
 
     @Override
     @CircuitBreaker(name = "razorpayRefund", fallbackMethod = "refundFallback")
-    public boolean initiateRefund(String gatewayOrderId, java.math.BigDecimal amount, String reason) {
+    public boolean initiateRefund(String gatewayOrderId, String refundId, java.math.BigDecimal amount, String reason) {
         try {
             // Amount must be in paise (amount * 100)
             int amountInPaise = amount.multiply(new java.math.BigDecimal("100")).intValue();
             
             JSONObject refundRequest = new JSONObject();
             refundRequest.put("amount", amountInPaise);
+            refundRequest.put("receipt", refundId);
             
             if (reason != null && !reason.trim().isEmpty()) {
                 JSONObject notes = new JSONObject();
@@ -120,14 +121,30 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
         }
     }
 
-    public boolean refundFallback(String gatewayOrderId, java.math.BigDecimal amount, String reason, Throwable t) {
+    public boolean refundFallback(String gatewayOrderId, String refundId, java.math.BigDecimal amount, String reason, Throwable t) {
         log.error("CircuitBreaker fallback triggered for initiateRefund (order: {}, amount: {}). Reason: {}", gatewayOrderId, amount, t.getMessage());
         return false;
     }
 
     @Override
     public com.fooddelivery.common.constants.PaymentIntentStatus verifyStatus(String gatewayOrderId) {
-        // Razorpay API call to get order status
-        return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
+        try {
+            Order order = razorpayClient.orders.fetch(gatewayOrderId);
+            String status = order.get("status");
+            return mapStatus(status);
+        } catch (RazorpayException e) {
+            log.error("Failed to verify status with Razorpay for order {}", gatewayOrderId, e);
+            return com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED;
+        }
+    }
+
+    public com.fooddelivery.common.constants.PaymentIntentStatus mapStatus(String status) {
+        if ("paid".equalsIgnoreCase(status)) {
+            return com.fooddelivery.common.constants.PaymentIntentStatus.SUCCESS;
+        } else if ("created".equalsIgnoreCase(status) || "attempted".equalsIgnoreCase(status)) {
+            return com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED;
+        } else {
+            return com.fooddelivery.common.constants.PaymentIntentStatus.FAILED;
+        }
     }
 }
