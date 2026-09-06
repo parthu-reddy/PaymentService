@@ -35,6 +35,7 @@ import org.springframework.context.annotation.Bean;
 })
 @org.springframework.test.context.ActiveProfiles("contract-test")
 @AutoConfigureMessageVerifier
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.BEFORE_CLASS)
 @EmbeddedKafka(partitions = 1, topics = {"payment-events"})
 public abstract class BaseMessagingClass {
 
