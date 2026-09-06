@@ -96,7 +96,7 @@ public class AdminDlqController {
 
     @GetMapping("/outbox")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<org.springframework.data.domain.Page<OutboxEventEntity>> getOutboxDlqEvents(
+    public ResponseEntity<com.fooddelivery.common.dto.PageResponseDto<OutboxEventEntity>> getOutboxDlqEvents(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         
@@ -104,7 +104,18 @@ public class AdminDlqController {
         org.springframework.data.domain.Page<OutboxEventEntity> outboxPage = 
             outboxEventRepository.findByStatus(OutboxStatus.DLQ, pageable);
             
-        return ResponseEntity.ok(outboxPage);
+        return ResponseEntity.ok(com.fooddelivery.common.dto.PageResponseDto.<OutboxEventEntity>builder()
+            .content(outboxPage.getContent())
+            .number(outboxPage.getNumber())
+            .size(outboxPage.getSize())
+            .totalElements(outboxPage.getTotalElements())
+            .totalPages(outboxPage.getTotalPages())
+            .last(outboxPage.isLast())
+            .first(outboxPage.isFirst())
+            .numberOfElements(outboxPage.getNumberOfElements())
+            .empty(outboxPage.isEmpty())
+            .build()
+        );
     }
 
     @PostMapping("/outbox/{eventId}/retry")
@@ -133,7 +144,7 @@ public class AdminDlqController {
 
     @GetMapping("/webhooks")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<org.springframework.data.domain.Page<WebhookDelivery>> getFailedWebhooks(
+    public ResponseEntity<com.fooddelivery.common.dto.PageResponseDto<WebhookDelivery>> getFailedWebhooks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         
@@ -141,7 +152,18 @@ public class AdminDlqController {
         org.springframework.data.domain.Page<WebhookDelivery> failedWebhooks = 
             webhookDeliveryRepository.findByProcessingStatus(DeliveryStatus.FAILED, pageable);
             
-        return ResponseEntity.ok(failedWebhooks);
+        return ResponseEntity.ok(com.fooddelivery.common.dto.PageResponseDto.<WebhookDelivery>builder()
+            .content(failedWebhooks.getContent())
+            .number(failedWebhooks.getNumber())
+            .size(failedWebhooks.getSize())
+            .totalElements(failedWebhooks.getTotalElements())
+            .totalPages(failedWebhooks.getTotalPages())
+            .last(failedWebhooks.isLast())
+            .first(failedWebhooks.isFirst())
+            .numberOfElements(failedWebhooks.getNumberOfElements())
+            .empty(failedWebhooks.isEmpty())
+            .build()
+        );
     }
 
     @PostMapping("/webhooks/{eventId}/retry")
