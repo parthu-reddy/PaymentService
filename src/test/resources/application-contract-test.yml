@@ -18,3 +18,9 @@ payments:
     CARD: RAZORPAY
     UPI: CASHFREE
     WALLET: VYAPAR
+
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 30s

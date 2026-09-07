@@ -6,7 +6,10 @@ import java.time.ZonedDateTime;
 import com.fooddelivery.common.enums.TransactionStatus;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "transactions")@lombok.AllArgsConstructor
+@lombok.NoArgsConstructor
+@lombok.Data
+
 public class Transaction extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

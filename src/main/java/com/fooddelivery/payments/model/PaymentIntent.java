@@ -6,7 +6,10 @@ import com.fooddelivery.common.enums.PaymentGateway;
 import com.fooddelivery.common.constants.PaymentIntentStatus;
 
 @Entity
-@Table(name = "payment_intents")
+@Table(name = "payment_intents")@lombok.AllArgsConstructor
+@lombok.NoArgsConstructor
+@lombok.Data
+
 public class PaymentIntent extends BaseEntity {
 
     @Column(name = "order_id", nullable = false)

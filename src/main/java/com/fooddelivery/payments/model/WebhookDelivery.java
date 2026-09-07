@@ -5,7 +5,10 @@ import com.fooddelivery.payments.model.enums.DeliveryStatus;
 import com.fooddelivery.common.enums.PaymentGateway;
 
 @Entity
-@Table(name = "webhook_deliveries")
+@Table(name = "webhook_deliveries")@lombok.AllArgsConstructor
+@lombok.NoArgsConstructor
+@lombok.Data
+
 public class WebhookDelivery extends BaseEntity {
 
     @Enumerated(EnumType.STRING)

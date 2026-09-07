@@ -15,7 +15,10 @@ import java.util.concurrent.Executor;
 @Configuration
 @EnableAsync
 @ConfigurationProperties(prefix = "spring.task.execution.pool")
-@lombok.extern.slf4j.Slf4j
+@lombok.extern.slf4j.Slf4j@lombok.AllArgsConstructor
+@lombok.NoArgsConstructor
+@lombok.Data
+
 public class AsyncConfiguration implements AsyncConfigurer {
 
     private int coreSize = 8;

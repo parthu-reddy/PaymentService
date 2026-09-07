@@ -5,7 +5,10 @@ import java.math.BigDecimal;
 import com.fooddelivery.common.enums.RefundStatus;
 
 @Entity
-@Table(name = "refunds")
+@Table(name = "refunds")@lombok.AllArgsConstructor
+@lombok.NoArgsConstructor
+@lombok.Data
+
 public class Refund extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -7,6 +7,9 @@ import java.time.ZonedDateTime;
 import java.util.UUID;
 
 @MappedSuperclass
+@lombok.AllArgsConstructor
+@lombok.NoArgsConstructor
+@lombok.Data
 public abstract class BaseEntity {
 
     @Id
@@ -23,37 +26,5 @@ public abstract class BaseEntity {
 
     @Version
     private Integer version;
-
-    public UUID getId() {
-        return this.id;
-    }
-
-    public ZonedDateTime getCreatedAt() {
-        return this.createdAt;
-    }
-
-    public ZonedDateTime getUpdatedAt() {
-        return this.updatedAt;
-    }
-
-    public Integer getVersion() {
-        return this.version;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public void setCreatedAt(ZonedDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public void setUpdatedAt(ZonedDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public void setVersion(Integer version) {
-        this.version = version;
-    }
 
 }
