@@ -22,7 +22,13 @@ public class PaymentGatewayOrchestrator {
 
     public PaymentGatewayOrchestrator(List<IPaymentGatewayStrategy> strategyList) {
         this.strategies = strategyList.stream()
-                .collect(Collectors.toMap(IPaymentGatewayStrategy::getGatewayName, Function.identity()));
+                .collect(Collectors.toMap(IPaymentGatewayStrategy::getGatewayName, Function.identity(),
+                        (a, b) -> {
+                            throw new IllegalStateException(String.format(
+                                    "Two strategies registered for gateway %s: %s and %s. A real and a mock "
+                                    + "strategy are both active -- check SPRING_PROFILES_ACTIVE.",
+                                    a.getGatewayName(), a.getClass().getName(), b.getClass().getName()));
+                        }));
     }
 
     public IPaymentGatewayStrategy getStrategy(PaymentGateway gatewayName) {

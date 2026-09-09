@@ -23,6 +23,8 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 public class RazorpayStrategy implements IPaymentGatewayStrategy {
 
     private final RazorpayClient razorpayClient;
+    private final String rzpKeyId;
+    private final String rzpKeySecret;
     private final String webhookSecret;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -32,6 +34,8 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
             @Value("${razorpay.webhook.secret}") String webhookSecret) throws RazorpayException {
         this.razorpayClient = new RazorpayClient(rzpKeyId, rzpKeySecret);
         this.webhookSecret = webhookSecret;
+        this.rzpKeyId = rzpKeyId;
+        this.rzpKeySecret = rzpKeySecret;
     }
 
     @Override
@@ -145,6 +149,30 @@ public class RazorpayStrategy implements IPaymentGatewayStrategy {
             return com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED;
         } else {
             return com.fooddelivery.common.constants.PaymentIntentStatus.FAILED;
+        }
+    }
+
+    /**
+     * These strategies only exist under the {@code prod} profile, so this guard is inherently
+     * production-only. A blank or placeholder credential must stop the service starting rather than
+     * fail on the first real payment.
+     */
+    @jakarta.annotation.PostConstruct
+    public void assertProductionCredentials() {
+        requireRealCredential(rzpKeyId, "razorpay.key.id");
+        requireRealCredential(rzpKeySecret, "razorpay.key.secret");
+        requireRealCredential(webhookSecret, "razorpay.webhook.secret");
+    }
+
+    private static void requireRealCredential(String value, String name) {
+        // "dev-placeholder-" is what the non-prod profile document in payment-service.yml resolves
+        // to. It must never reach a real gateway call, so it is refused here alongside a blank or a
+        // test_ key.
+        if (value == null || value.isBlank()
+                || value.startsWith("test_") || value.startsWith("dev-placeholder-")) {
+            throw new IllegalStateException(
+                    "Refusing to start: " + name + " is missing or is a placeholder value. "
+                    + "Set it from the vault before deploying.");
         }
     }
 }

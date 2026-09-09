@@ -19,7 +19,9 @@ import java.util.concurrent.TimeUnit;
 import jakarta.annotation.PreDestroy;
 
 @Service
-@Profile({"debug", "dev", "default", "test", "local"})
+// Never alongside the real strategy: PaymentGatewayOrchestrator keys its map by gateway, so a
+// profile list containing both (e.g. "prod,debug") would fail bean construction on a duplicate key.
+@Profile("!prod & (debug | dev | default | test | local)")
 @lombok.extern.slf4j.Slf4j
 public class MockCashfreeStrategy implements IPaymentGatewayStrategy {
 

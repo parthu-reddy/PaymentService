@@ -83,7 +83,7 @@ public class WebhookAmountVerificationTest {
         verify(paymentIntentRepository, times(1)).save(intent);
         
         // Ensure metric was incremented
-        assertEquals(1.0, meterRegistry.counter("payment.amount.mismatch", "gateway", "CASHFREE").count());
+        assertEquals(1.0, meterRegistry.counter("payment_webhook_mismatch_total", "gateway", "CASHFREE").count());
         
         // Ensure outbox event for FAILED payment was emitted
         verify(outboxEventRepository, times(1)).save(any());

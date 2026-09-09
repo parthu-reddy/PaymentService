@@ -216,7 +216,10 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
 
             if (paidAmount != null && intent.getAmount().compareTo(paidAmount) != 0) {
                 log.warn("Payment amount mismatch for order {}: expected {}, received {}", intent.getOrderId(), intent.getAmount(), paidAmount);
-                meterRegistry.counter("payment.amount.mismatch", "gateway", intent.getGatewayName().name()).increment();
+                // payment_webhook_mismatch_total is what the PaymentWebhookAmountMismatch rule queries. It
+                // used to be exported as payment.amount.mismatch here while a same-named constant-zero
+                // counter was registered in LedgerService to satisfy a grep, so the alert never fired.
+                meterRegistry.counter("payment_webhook_mismatch_total", "gateway", intent.getGatewayName().name()).increment();
                 handleFailedPayment(gatewayOrderId, "AMOUNT_MISMATCH: expected " + intent.getAmount() + " but received " + paidAmount);
                 return;
             }

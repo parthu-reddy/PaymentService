@@ -18,4 +18,7 @@ public interface ITransactionRepository extends JpaRepository<Transaction, UUID>
     
     @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.status = 'SUCCESS' AND CAST(t.createdAt AS date) = :date")
     java.math.BigDecimal sumCapturedAmountByDate(@org.springframework.data.repository.query.Param("date") java.time.LocalDate date);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.status = 'SUCCESS' AND CAST(t.createdAt AS date) = :date AND t.paymentIntent.gatewayName = :gatewayName")
+    java.math.BigDecimal sumCapturedAmountByDateAndGateway(@org.springframework.data.repository.query.Param("date") java.time.LocalDate date, @org.springframework.data.repository.query.Param("gatewayName") com.fooddelivery.common.enums.PaymentGateway gatewayName);
 }

@@ -21,7 +21,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 // "local" was missing while its two siblings had it, so under SPRING_PROFILES_ACTIVE=local no
 // Vyapar strategy registered at all -- neither this nor the @Profile("prod") real one -- and the
 // context failed to satisfy the dependency.
-@Profile({"debug", "dev", "default", "test", "local"})
+// Never alongside the real strategy: PaymentGatewayOrchestrator keys its map by gateway, so a
+// profile list containing both (e.g. "prod,debug") would fail bean construction on a duplicate key.
+@Profile("!prod & (debug | dev | default | test | local)")
 @lombok.extern.slf4j.Slf4j
 public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
 

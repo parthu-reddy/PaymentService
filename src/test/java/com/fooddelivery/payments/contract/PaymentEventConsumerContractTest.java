@@ -84,4 +84,5 @@ class PaymentEventConsumerContractTest {
         await().atMost(15, TimeUnit.SECONDS).untilAsserted(() ->
                 verify(orchestrator).initiateRefund(any(), eq("pay_12345"), anyString(), any(), anyString()));
     }
+
 }

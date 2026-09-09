@@ -28,9 +28,17 @@ public class InternalPaymentController {
     // Endpoint: /api/v1/internal/payments/daily-totals
     @GetMapping("/daily-totals")
     @PreAuthorize("hasRole('SERVICE')")
-    public Map<String, BigDecimal> getDailyTotals(@RequestParam("date") LocalDate date) {
-        BigDecimal capturedAmount = transactionRepository.sumCapturedAmountByDate(date);
-        BigDecimal refundedAmount = refundRepository.sumRefundedAmountByDate(date);
+    public Map<String, BigDecimal> getDailyTotals(@RequestParam("date") LocalDate date, @RequestParam(value = "gatewayName", required = false) String gatewayName) {
+        BigDecimal capturedAmount;
+        BigDecimal refundedAmount;
+        if (gatewayName != null && !gatewayName.isEmpty()) {
+            com.fooddelivery.common.enums.PaymentGateway gateway = com.fooddelivery.common.enums.PaymentGateway.valueOf(gatewayName);
+            capturedAmount = transactionRepository.sumCapturedAmountByDateAndGateway(date, gateway);
+            refundedAmount = refundRepository.sumRefundedAmountByDateAndGateway(date, gateway);
+        } else {
+            capturedAmount = transactionRepository.sumCapturedAmountByDate(date);
+            refundedAmount = refundRepository.sumRefundedAmountByDate(date);
+        }
 
         Map<String, BigDecimal> result = new HashMap<>();
         result.put("capturedAmount", capturedAmount);

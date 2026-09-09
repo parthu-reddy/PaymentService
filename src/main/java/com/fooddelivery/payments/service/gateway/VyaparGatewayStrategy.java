@@ -206,4 +206,27 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
         log.error("Vyapar status check unavailable, circuit breaker tripped for order {}: {}", gatewayOrderId, t.getMessage());
         throw new IllegalStateException("Payment status verification is currently unavailable. Cannot confirm payment.");
     }
+
+    /**
+     * These strategies only exist under the {@code prod} profile, so this guard is inherently
+     * production-only. A blank or placeholder credential must stop the service starting rather than
+     * fail on the first real payment.
+     */
+    @jakarta.annotation.PostConstruct
+    public void assertProductionCredentials() {
+        requireRealCredential(apiKey, "vyapargateway.api.key");
+        requireRealCredential(webhookSecret, "vyapargateway.webhook.secret");
+    }
+
+    private static void requireRealCredential(String value, String name) {
+        // "dev-placeholder-" is what the non-prod profile document in payment-service.yml resolves
+        // to. It must never reach a real gateway call, so it is refused here alongside a blank or a
+        // test_ key.
+        if (value == null || value.isBlank()
+                || value.startsWith("test_") || value.startsWith("dev-placeholder-")) {
+            throw new IllegalStateException(
+                    "Refusing to start: " + name + " is missing or is a placeholder value. "
+                    + "Set it from the vault before deploying.");
+        }
+    }
 }
