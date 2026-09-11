@@ -63,10 +63,7 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-mcp-server-webmvc-spring-boot-starter</artifactId>
-        </dependency>
+
         <dependency> 
             <groupId>com.fooddelivery</groupId> 
             <artifactId>common-library</artifactId> 
