@@ -38,6 +38,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @org.springframework.test.context.TestPropertySource(properties = {
+    // This test runs with no active profile, so the mock gateway strategies are registered by
+    // @Profile("... | default | ..."). PaymentStartupInvariants refuses to start with mocks unless
+    // that is stated deliberately -- which is the whole point of it, and is stated here.
+    "app.payments.allow-mock-gateways=true",
     "spring.flyway.enabled=false",
     "spring.jpa.hibernate.ddl-auto=create-drop",
     "spring.kafka.admin.auto-create=false",

@@ -15,3 +15,8 @@ payments:
     CARD: RAZORPAY
     UPI: CASHFREE
     WALLET: VYAPAR
+# Mock gateways are the point of a test run, so say so explicitly -- PaymentStartupInvariants
+# refuses to start otherwise, which is what stops a deployment shipping them by accident.
+app:
+  payments:
+    allow-mock-gateways: true
