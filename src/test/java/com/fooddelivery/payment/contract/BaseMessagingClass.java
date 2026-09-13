@@ -118,4 +118,55 @@ public abstract class BaseMessagingClass {
                 com.fooddelivery.common.constants.EventType.AD_WALLET_TOPUP_COMPLETED, payloadNode);
     }
 
+    /**
+     * PAYMENT_REFUNDED, from WebhookProcessingService when a gateway confirms a refund.
+     *
+     * <p>Added 2026-09-12. payment-events carried contracts for PAYMENT_COMPLETED and
+     * AD_WALLET_TOPUP_COMPLETED only, so CustomerApplication's PaymentEventConsumer -- which acts on
+     * PAYMENT_REFUNDED, PAYMENT_FAILED and PAYMENT_PARTIALLY_REFUNDED -- had no contract for any of
+     * the three events it actually handles.
+     *
+     * <p>Built from a real {@link com.fooddelivery.common.event.PaymentRefundedEvent}, serialised the
+     * way the producer serialises it, so a field renamed on that class fails here.
+     */
+    public void firePaymentRefunded() throws Exception {
+        String orderId = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+        com.fooddelivery.common.event.PaymentRefundedEvent event =
+                com.fooddelivery.common.event.PaymentRefundedEvent.builder()
+                        .orderId(orderId)
+                        .gatewayOrderId("order_ABC123")
+                        .amountRefunded(new java.math.BigDecimal("15.50"))
+                        .gatewayName(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY)
+                        .refundDestination(com.fooddelivery.common.enums.RefundDestination.ORIGINAL_METHOD)
+                        .refundId("rfnd_XYZ789")
+                        .gatewayRefundId("rfnd_XYZ789")
+                        .status("COMPLETED")
+                        .build();
+        com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
+        payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED.name());
+        // isSuccess is what the consumer branches on; the producer derives it from status.
+        payloadNode.put("isSuccess", true);
+        publishViaOutbox(com.fooddelivery.common.constants.AggregateType.PAYMENT, orderId,
+                com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED, payloadNode);
+    }
+
+    /**
+     * PAYMENT_FAILED, from the same webhook path when the gateway declines.
+     *
+     * <p>Built from the real {@code PaymentFailedEvent} record. {@code failureReason} is the field
+     * the customer eventually sees on a failed order, and the only one carrying why.
+     */
+    public void firePaymentFailed() throws Exception {
+        String orderId = "3f2504e0-4f89-41d3-9a0c-0305e82c3301";
+        com.fooddelivery.common.event.PaymentFailedEvent event =
+                new com.fooddelivery.common.event.PaymentFailedEvent(
+                        java.util.UUID.fromString(orderId),
+                        "order_ABC123",
+                        com.fooddelivery.common.enums.PaymentGateway.RAZORPAY.name(),
+                        "Card declined by issuing bank");
+        com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
+        payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_FAILED.name());
+        publishViaOutbox(com.fooddelivery.common.constants.AggregateType.PAYMENT, orderId,
+                com.fooddelivery.common.constants.EventType.PAYMENT_FAILED, payloadNode);
+    }
 }
