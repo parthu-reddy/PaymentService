@@ -32,7 +32,7 @@ class PaymentEventConsumerRefundIdempotencyTest {
         idempotencyKeyRepository = Mockito.mock(IIdempotencyKeyRepository.class);
 
         paymentEventConsumer = new PaymentEventConsumer(
-                objectMapper, orchestrator, meterRegistry, webhookProcessingService, idempotencyKeyRepository
+                objectMapper, new com.fooddelivery.common.event.EventBinder(objectMapper, jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator()), orchestrator, meterRegistry, webhookProcessingService, idempotencyKeyRepository
         );
     }
 
@@ -42,12 +42,11 @@ class PaymentEventConsumerRefundIdempotencyTest {
         String payload = """
                 {
                     "eventType": "PAYMENT_REFUND_REQUESTED",
-                    "payload": {
-                        "gatewayOrderId": "gw_123",
-                        "amountInInr": 100.0,
-                        "gatewayName": "RAZORPAY",
-                        "refundId": "refund_456"
-                    }
+                    "orderId": "order_123",
+                    "gatewayOrderId": "gw_123",
+                    "amount": 100.0,
+                    "gatewayName": "RAZORPAY",
+                    "refundId": "refund_456"
                 }
                 """;
 
@@ -73,12 +72,11 @@ class PaymentEventConsumerRefundIdempotencyTest {
         String payload = """
                 {
                     "eventType": "PAYMENT_REFUND_REQUESTED",
-                    "payload": {
-                        "gatewayOrderId": "gw_123",
-                        "amountInInr": 100.0,
-                        "gatewayName": "RAZORPAY",
-                        "refundId": "refund_456"
-                    }
+                    "orderId": "order_123",
+                    "gatewayOrderId": "gw_123",
+                    "amount": 100.0,
+                    "gatewayName": "RAZORPAY",
+                    "refundId": "refund_456"
                 }
                 """;
 

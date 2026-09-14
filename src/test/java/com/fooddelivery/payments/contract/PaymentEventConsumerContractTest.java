@@ -61,6 +61,11 @@ class PaymentEventConsumerContractTest {
         public MeterRegistry meterRegistry() {
             return new SimpleMeterRegistry();
         }
+
+        @Bean
+        public com.fooddelivery.common.event.EventBinder eventBinder(com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+            return new com.fooddelivery.common.event.EventBinder(objectMapper, jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator());
+        }
     }
 
     @MockBean private IIdempotencyKeyRepository idempotencyKeyRepository;

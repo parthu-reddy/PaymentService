@@ -43,14 +43,21 @@ class PaymentEventConsumerAmountTest {
         when(keys.existsById(anyString())).thenReturn(false);
 
         PaymentEventConsumer consumer = new PaymentEventConsumer(
-                platformMapper(), orchestrator, new SimpleMeterRegistry(),
+                platformMapper(), new com.fooddelivery.common.event.EventBinder(platformMapper(), jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator()), orchestrator, new SimpleMeterRegistry(),
                 mock(WebhookProcessingService.class), keys);
 
         // A value a double cannot hold: as a DoubleNode this becomes 12345678901234568.
         String exact = "12345678901234567.89";
-        String payload = "{\"eventType\":\"PAYMENT_REFUND_REQUESTED\",\"gatewayOrderId\":\"pay_1\","
-                + "\"amountInInr\":" + exact + ",\"gatewayName\":\"RAZORPAY\",\"refundDestination\":\"GATEWAY\",\"refundId\":\"ref_123\"}";
-        consumer.consumeOrderEvents(payload, Map.of());
+        com.fooddelivery.common.event.PaymentRefundRequestedEvent event =
+                com.fooddelivery.common.event.PaymentRefundRequestedEvent.builder()
+                        .refundId("ref_123")
+                        .orderId("o1")
+                        .gatewayOrderId("pay_1")
+                        .amount(new BigDecimal(exact))
+                        .gatewayName(PaymentGateway.RAZORPAY)
+                        .build();
+        String payload = platformMapper().writeValueAsString(event);
+        consumer.consumeOrderEvents(payload, Map.of("eventType", "PAYMENT_REFUND_REQUESTED".getBytes()));
 
         ArgumentCaptor<BigDecimal> amount = ArgumentCaptor.forClass(BigDecimal.class);
         verify(orchestrator).initiateRefund(eq(PaymentGateway.RAZORPAY), eq("pay_1"), anyString(), amount.capture(), anyString());
@@ -67,7 +74,7 @@ class PaymentEventConsumerAmountTest {
         when(keys.existsById(anyString())).thenReturn(false);
 
         PaymentEventConsumer consumer = new PaymentEventConsumer(
-                platformMapper(), mock(PaymentGatewayOrchestrator.class), new SimpleMeterRegistry(),
+                platformMapper(), new com.fooddelivery.common.event.EventBinder(platformMapper(), jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator()), mock(PaymentGatewayOrchestrator.class), new SimpleMeterRegistry(),
                 mock(WebhookProcessingService.class), keys);
 
         // PAYMENT_COMPLETED is published on payment-events by this service's own webhook processor

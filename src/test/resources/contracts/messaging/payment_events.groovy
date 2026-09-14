@@ -26,7 +26,13 @@ org.springframework.cloud.contract.spec.Contract.make {
             amount: 250.00,
             gatewayName: "RAZORPAY",
             paymentMethod: "CARD",
-            paidAt: $(producer(regex('\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z'))),
+            // Fixed consumer value, not just a producer regex. CustomerApplication's
+            // PaymentEventConsumer binds this stub to PaymentSucceededEvent, whose paidAt is an
+            // Instant; a producer-only regex makes Spring Cloud Contract generate a random
+            // matching string, and not every string matching this pattern is a valid Instant.
+            // The consumer test then passes or fails depending on the generator.
+            paidAt: $(producer(regex('\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z')),
+                      consumer('2023-01-01T12:00:00Z')),
             eventType: "PAYMENT_COMPLETED"
         ])
     }

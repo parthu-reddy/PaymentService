@@ -23,13 +23,15 @@ import java.util.UUID;
 public class PaymentEventConsumer {
 
     private final ObjectMapper objectMapper;
+    private final com.fooddelivery.common.event.EventBinder eventBinder;
     private final PaymentGatewayOrchestrator orchestrator;
     private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
     private final WebhookProcessingService webhookProcessingService;
     private final IIdempotencyKeyRepository idempotencyKeyRepository;
 
-    public PaymentEventConsumer(ObjectMapper objectMapper, PaymentGatewayOrchestrator orchestrator, io.micrometer.core.instrument.MeterRegistry meterRegistry, WebhookProcessingService webhookProcessingService, IIdempotencyKeyRepository idempotencyKeyRepository) {
+    public PaymentEventConsumer(ObjectMapper objectMapper, com.fooddelivery.common.event.EventBinder eventBinder, PaymentGatewayOrchestrator orchestrator, io.micrometer.core.instrument.MeterRegistry meterRegistry, WebhookProcessingService webhookProcessingService, IIdempotencyKeyRepository idempotencyKeyRepository) {
         this.objectMapper = objectMapper;
+        this.eventBinder = eventBinder;
         this.orchestrator = orchestrator;
         this.meterRegistry = meterRegistry;
         this.webhookProcessingService = webhookProcessingService;
@@ -38,8 +40,7 @@ public class PaymentEventConsumer {
 
     @RetryableTopic(
             attempts = "4",
-            backoff = @Backoff(delay = 2000, multiplier = 2.0, maxDelay = 10000)
-    )
+            backoff = @Backoff(delay = 2000, multiplier = 2.0, maxDelay = 10000), exclude = {com.fooddelivery.common.event.EventBindingException.class}, traversingCauses = "true")
     @KafkaListener(topics = com.fooddelivery.common.constants.KafkaConstants.TOPIC_PAYMENT_EVENTS, groupId = com.fooddelivery.common.constants.KafkaConstants.GROUP_PAYMENT_SERVICE + "-paymenteventconsumer")
     public void consumeOrderEvents(String payload, @org.springframework.messaging.handler.annotation.Headers java.util.Map<String, Object> headers) {
         try {
@@ -60,25 +61,19 @@ public class PaymentEventConsumer {
 
             boolean handled = false;
             try {
-                JsonNode rootNode = objectMapper.readTree(payload);
-                String eventType = com.fooddelivery.common.util.EventPayloadUtils.resolveEventType(rootNode, headers);
-                if (com.fooddelivery.common.constants.EventType.PAYMENT_REFUND_REQUESTED.name().equals(eventType)) {
+                String eventType = com.fooddelivery.common.util.EventPayloadUtils.resolveEventType(objectMapper.readTree(payload), headers);
+                java.util.Optional<com.fooddelivery.common.event.PaymentRefundRequestedEvent> eventOpt = eventBinder.bindIf(com.fooddelivery.common.constants.EventType.PAYMENT_REFUND_REQUESTED, eventType, payload, com.fooddelivery.common.event.PaymentRefundRequestedEvent.class);
+                if (eventOpt.isPresent()) {
                     handled = true;
                     log.info("Received PAYMENT_REFUND_REQUESTED event");
-                    JsonNode payloadNode = com.fooddelivery.common.util.EventPayloadUtils.unwrapPayload(rootNode);
+                    com.fooddelivery.common.event.PaymentRefundRequestedEvent event = eventOpt.get();
                     
-                    String gatewayOrderId = payloadNode.path("gatewayOrderId").asText(null);
-                    // decimalValue() on a DecimalNode is the exact wire value. The platform ObjectMapper
-                    // enables USE_BIG_DECIMAL_FOR_FLOATS (see JacksonConfig) so this node is a
-                    // DecimalNode; without that the number is already a double before it gets here
-                    // and no call-site expression can recover the lost digits. A missing node yields
-                    // BigDecimal.ZERO, keeping the compareTo(ZERO) guard below meaningful.
-                    java.math.BigDecimal amountInInr = payloadNode.path("amountInInr").decimalValue();
-                    String gatewayNameStr = payloadNode.path("gatewayName").asText(null);
-                    String refundDestStr = payloadNode.path("refundDestination").asText("GATEWAY");
-                    String refundIdStr = payloadNode.path("refundId").asText(null);
+                    String gatewayOrderId = event.getGatewayOrderId();
+                    java.math.BigDecimal amount = event.getAmount();
+                    String gatewayNameStr = event.getGatewayName().name();
+                    String refundIdStr = event.getRefundId();
                     
-                    if (gatewayOrderId != null && amountInInr.compareTo(java.math.BigDecimal.ZERO) > 0 && gatewayNameStr != null && refundIdStr != null) {
+                    if (gatewayOrderId != null && amount != null && amount.compareTo(java.math.BigDecimal.ZERO) > 0 && gatewayNameStr != null && refundIdStr != null) {
                         try {
                             PaymentGateway gateway = PaymentGateway.valueOf(gatewayNameStr.toUpperCase());
                             
@@ -91,7 +86,7 @@ public class PaymentEventConsumer {
                             
                             log.info("Initiating refund for gatewayOrderId: {}, gateway: {}, refundId: {}", gatewayOrderId, gateway, refundIdStr);
                             meterRegistry.counter("refunds.requested", "gateway", gatewayNameStr).increment();
-                            boolean success = orchestrator.initiateRefund(gateway, gatewayOrderId, refundIdStr, amountInInr, "Order cancelled or rejected");
+                            boolean success = orchestrator.initiateRefund(gateway, gatewayOrderId, refundIdStr, amount, "Order cancelled or rejected");
                             if (success) {
                                 log.info("Refund initiated successfully for gatewayOrderId: {}", gatewayOrderId);
                                 try {

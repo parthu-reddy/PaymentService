@@ -249,4 +249,50 @@ public class WebhookProcessingServiceTest {
         assertEquals(PaymentIntentStatus.REFUNDED, intent.getStatus());
         assertEquals(new BigDecimal("100.00"), tx.getAmountRefunded());
     }
+    @Test
+    void testProducerPayloadMatchesPaymentRefundedEvent() throws Exception {
+        String gatewayOrderId = "order_123";
+        String gatewayRefundId = "refund_123";
+        
+        PaymentIntent intent = new PaymentIntent();
+        intent.setId(UUID.randomUUID());
+        intent.setOrderId(UUID.randomUUID().toString());
+        intent.setGatewayOrderId(gatewayOrderId);
+        intent.setAmount(new BigDecimal("100.00"));
+        intent.setAmountRefunded(BigDecimal.ZERO);
+        intent.setGatewayName(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY);
+
+        com.fooddelivery.payments.model.Transaction tx = new com.fooddelivery.payments.model.Transaction();
+        tx.setId(UUID.randomUUID());
+        tx.setAmountRefunded(BigDecimal.ZERO);
+        
+        when(paymentIntentRepository.findLockedByGatewayOrderId(gatewayOrderId)).thenReturn(Optional.of(intent));
+        when(refundRepository.findByGatewayRefundId(gatewayRefundId)).thenReturn(Optional.empty());
+        when(transactionRepository.findLockedFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(eq(intent.getId()), any())).thenReturn(Optional.of(tx));
+
+        com.fasterxml.jackson.databind.node.ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("amount_refunded", "100.00");
+
+        service.handleRefundSuccess(gatewayOrderId, gatewayRefundId, payload);
+
+        ArgumentCaptor<com.fooddelivery.common.outbox.entity.OutboxEventEntity> outboxCaptor = ArgumentCaptor.forClass(com.fooddelivery.common.outbox.entity.OutboxEventEntity.class);
+        verify(outboxEventRepository).save(outboxCaptor.capture());
+
+        String outboxPayload = outboxCaptor.getValue().getPayload();
+        
+        // Assert deserialization to PaymentRefundedEvent
+        ObjectMapper originalMapper = new ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+            .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        com.fooddelivery.common.event.PaymentRefundedEvent event = originalMapper.readValue(outboxPayload, com.fooddelivery.common.event.PaymentRefundedEvent.class);
+        
+        assertEquals(intent.getOrderId(), event.getOrderId());
+        assertEquals(gatewayOrderId, event.getGatewayOrderId());
+        org.assertj.core.api.Assertions.assertThat(event.getAmountRefunded())
+            .usingComparator(BigDecimal::compareTo)
+            .isEqualTo(new BigDecimal("100.00"));
+        assertEquals(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY, event.getGatewayName());
+        assertEquals(gatewayRefundId, event.getRefundId());
+        assertEquals(gatewayRefundId, event.getGatewayRefundId());
+    }
 }
