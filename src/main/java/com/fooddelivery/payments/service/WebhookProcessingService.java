@@ -237,21 +237,17 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
 
             paymentIntentRepository.save(intent);
             try {
-                com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
-                
                 boolean isWalletTopup = intent.getOrderId().startsWith("WALLET_");
                 com.fooddelivery.common.constants.EventType eventType = isWalletTopup ? 
                     com.fooddelivery.common.constants.EventType.AD_WALLET_TOPUP_COMPLETED : 
                     com.fooddelivery.common.constants.EventType.PAYMENT_COMPLETED;
-                
-                payloadNode.put("eventType", eventType.name());
                 
                 com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
                         .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                         .aggregateId(intent.getOrderId())
                         .eventType(eventType)
-                        .payload(objectMapper.writeValueAsString(payloadNode))
+                        .payload(objectMapper.writeValueAsString(event))
                         .createdAt(java.time.LocalDateTime.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
@@ -287,15 +283,12 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
 
             paymentIntentRepository.save(intent);
             try {
-                com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(event);
-                payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_FAILED.name());
-                
                 com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
                         .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                         .aggregateId(intent.getOrderId())
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_FAILED)
-                        .payload(objectMapper.writeValueAsString(payloadNode))
+                        .payload(objectMapper.writeValueAsString(event))
                         .createdAt(java.time.LocalDateTime.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
@@ -393,19 +386,16 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                         .gatewayRefundId(gatewayRefundId)
                         .status("COMPLETED")
                         .build();
-                
-                com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(refundEvent);
                 com.fooddelivery.common.constants.EventType outboxEventType = (intent.getStatus() == PaymentIntentStatus.PARTIALLY_REFUNDED) ? 
                     com.fooddelivery.common.constants.EventType.PAYMENT_PARTIALLY_REFUNDED : 
                     com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED;
-                payloadNode.put("eventType", outboxEventType.name());
                 
                 com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
                         .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                         .aggregateId(intent.getOrderId().toString())
                         .eventType(outboxEventType)
-                        .payload(objectMapper.writeValueAsString(payloadNode))
+                        .payload(objectMapper.writeValueAsString(refundEvent))
                         .createdAt(java.time.LocalDateTime.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
@@ -444,16 +434,12 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                         .status("FAILED")
                         .failureReason(failureReason)
                         .build();
-                
-                com.fasterxml.jackson.databind.node.ObjectNode payloadNode = objectMapper.valueToTree(refundEvent);
-                payloadNode.put("eventType", com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED.name());
-                
                 com.fooddelivery.common.outbox.entity.OutboxEventEntity outbox = com.fooddelivery.common.outbox.entity.OutboxEventEntity.builder()
                         .id(java.util.UUID.randomUUID())
                         .aggregateType(com.fooddelivery.common.constants.AggregateType.PAYMENT)
                         .aggregateId(intent.getOrderId().toString())
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED)
-                        .payload(objectMapper.writeValueAsString(payloadNode))
+                        .payload(objectMapper.writeValueAsString(refundEvent))
                         .createdAt(java.time.LocalDateTime.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
