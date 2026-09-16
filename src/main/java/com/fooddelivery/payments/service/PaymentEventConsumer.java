@@ -53,6 +53,9 @@ public class PaymentEventConsumer {
             }
 
             String idempotencyKeyStr = "processed_event:" + resolvedEventId;
+            String receivedEventType = com.fooddelivery.common.util.KafkaHeaderUtils.extractHeaderValue(headers, "eventType");
+            log.info("PAYMENT_COMMAND_EVENT_RECEIVED eventId={} eventType={} payloadBytes={}",
+                    resolvedEventId, receivedEventType, payload == null ? 0 : payload.length());
 
             if (idempotencyKeyRepository.existsById(idempotencyKeyStr)) {
                 log.info("Duplicate event ignored: {}", idempotencyKeyStr);
@@ -105,7 +108,8 @@ public class PaymentEventConsumer {
                             log.error("Invalid gateway name in refund requested event: {}", gatewayNameStr);
                         }
                     } else {
-                        log.error("Missing required fields in PAYMENT_REFUND_REQUESTED event payload: {}", payload);
+                        log.error("PAYMENT_REFUND_REQUEST_INVALID eventId={} reason=missing_required_fields",
+                                resolvedEventId);
                     }
                 }
             } catch (Exception e) {
@@ -137,6 +141,7 @@ public class PaymentEventConsumer {
 
     @DltHandler
     public void processDeadLetterTopic(@Payload(required = false) String payload, @org.springframework.messaging.handler.annotation.Header(name = org.springframework.kafka.support.KafkaHeaders.EXCEPTION_MESSAGE, required = false) String exceptionMessage) {
-        log.error("Terminal failure for event in PaymentGateway. Payload: {}. Moving to manual intervention queue. Exception: {}", payload, exceptionMessage);
+        log.error("PAYMENT_EVENT_DLT payloadBytes={} exception={}",
+                payload == null ? 0 : payload.length(), exceptionMessage);
     }
 }

@@ -52,17 +52,6 @@ public class MockRazorpayStrategy implements IPaymentGatewayStrategy {
         String gatewayOrderId = "mock_rzp_txn_" + context.getInternalOrderId();
         log.info("[DEBUG PROFILE] Mocking Razorpay Gateway create order for internal order: {}", context.getInternalOrderId());
         
-        scheduler.schedule(() -> {
-            try {
-                log.info("MockRazorpayStrategy scheduled task started for gatewayOrderId: {}", gatewayOrderId);
-                log.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
-                webhookService.handleSuccessfulPayment(gatewayOrderId, context.getAmountInInr());
-                log.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
-            } catch (Throwable e) {
-                log.error("Error auto-triggering payment success in MockRazorpayStrategy task", e);
-            }
-        }, 2, TimeUnit.SECONDS);
-
         return gatewayOrderId;
     }
 

@@ -53,17 +53,6 @@ public class MockVyaparGatewayStrategy implements IPaymentGatewayStrategy {
         String gatewayOrderId = "mock_vyapar_txn_" + context.getInternalOrderId();
         log.info("[DEBUG PROFILE] Mocking Vyapar Gateway create order for internal order: {}", context.getInternalOrderId());
         
-        scheduler.schedule(() -> {
-            try {
-                log.info("MockVyaparGatewayStrategy scheduled task started for gatewayOrderId: {}", gatewayOrderId);
-                log.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
-                webhookService.handleSuccessfulPayment(gatewayOrderId, context.getAmountInInr());
-                log.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
-            } catch (Throwable e) {
-                log.error("Error auto-triggering payment success in MockVyaparGatewayStrategy task", e);
-            }
-        }, 2, TimeUnit.SECONDS);
-
         return gatewayOrderId;
     }
 

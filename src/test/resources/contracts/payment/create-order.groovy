@@ -4,11 +4,7 @@ Contract.make {
     description("Should create an order in payment service")
     request {
         method 'POST'
-        urlPath('/api/v1/payments/create-order') {
-            queryParameters {
-                parameter 'gateway': 'RAZORPAY'
-            }
-        }
+        urlPath('/api/v1/payments/create-order')
         headers {
             contentType(applicationJson())
         }
@@ -21,8 +17,11 @@ Contract.make {
     response {
         status OK()
         headers {
-            contentType(textPlain())
+            contentType(applicationJson())
         }
-        body("PAYMENT_LINK_URL")
+        body([
+            gatewayOrderId: "PAYMENT_LINK_URL",
+            gateway: "RAZORPAY"
+        ])
     }
 }

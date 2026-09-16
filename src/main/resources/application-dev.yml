@@ -1,0 +1,5 @@
+app:
+  payments:
+    # Dev uses mock gateway strategies and deterministically marks the persisted intent successful.
+    # Production never loads this profile and still requires a verified provider webhook.
+    allow-mock-gateways: true

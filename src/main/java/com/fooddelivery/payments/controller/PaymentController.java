@@ -29,15 +29,18 @@ public class PaymentController {
     private final PaymentGatewayOrchestrator orchestrator;
     private final com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository;
     private final com.fooddelivery.payments.config.PaymentRoutingConfig routingConfig;
+    private final com.fooddelivery.payments.service.PaymentCompletionScheduler paymentCompletionScheduler;
 
     @Autowired
     public PaymentController(
             PaymentGatewayOrchestrator orchestrator,
             com.fooddelivery.payments.repository.IPaymentIntentRepository paymentIntentRepository,
-            com.fooddelivery.payments.config.PaymentRoutingConfig routingConfig) {
+            com.fooddelivery.payments.config.PaymentRoutingConfig routingConfig,
+            com.fooddelivery.payments.service.PaymentCompletionScheduler paymentCompletionScheduler) {
         this.orchestrator = orchestrator;
         this.paymentIntentRepository = paymentIntentRepository;
         this.routingConfig = routingConfig;
+        this.paymentCompletionScheduler = paymentCompletionScheduler;
     }
 
     public static class CreateOrderRequest {
@@ -56,7 +59,7 @@ public class PaymentController {
     }
 
     @PostMapping("/create-order")
-    public ResponseEntity<String> createOrder(
+    public ResponseEntity<?> createOrder(
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody CreateOrderRequest request) {
         try {
@@ -64,8 +67,12 @@ public class PaymentController {
 
             PaymentGateway gateway = routingConfig.getGatewayForMethod(request.paymentMethod);
             if (gateway == null) {
+                log.warn("PAYMENT_METHOD_REJECTED internalOrderId={} paymentMethod={}", request.internalOrderId, request.paymentMethod);
                 return ResponseEntity.badRequest().body("Unsupported payment method: " + request.paymentMethod);
             }
+
+            log.info("PAYMENT_CREATE_REQUEST internalOrderId={} paymentMethod={} gateway={} amount={}",
+                    request.internalOrderId, request.paymentMethod, gateway, request.amountInInr);
 
             java.util.Optional<com.fooddelivery.payments.model.PaymentIntent> existingIntent = paymentIntentRepository.findByIdempotencyKey(effectiveIdempotencyKey);
             if (existingIntent.isPresent()) {
@@ -73,7 +80,14 @@ public class PaymentController {
                 if (!intent.getGatewayName().equals(gateway)) {
                     return ResponseEntity.badRequest().body("Order already initiated with different gateway: " + intent.getGatewayName());
                 }
-                return ResponseEntity.ok(intent.getGatewayOrderId());
+                log.info("PAYMENT_CREATE_IDEMPOTENT_HIT internalOrderId={} gateway={} gatewayOrderId={}",
+                        request.internalOrderId, gateway, intent.getGatewayOrderId());
+                if (intent.getStatus() == com.fooddelivery.common.constants.PaymentIntentStatus.INITIATED) {
+                    paymentCompletionScheduler.afterIntentPersisted(
+                            intent.getOrderId(), intent.getGatewayOrderId(), intent.getAmount());
+                }
+                return ResponseEntity.ok(new com.fooddelivery.common.dto.payment.CreatePaymentResponse(
+                        intent.getGatewayOrderId(), intent.getGatewayName()));
             }
 
             PaymentRequestContext context = PaymentRequestContext.builder()
@@ -92,11 +106,17 @@ public class PaymentController {
             intent.setAmount(request.amountInInr);
             intent.setIdempotencyKey(effectiveIdempotencyKey);
             paymentIntentRepository.save(intent);
+            paymentCompletionScheduler.afterIntentPersisted(
+                    request.internalOrderId, intentOrOrderId, request.amountInInr);
 
-            return ResponseEntity.ok(intentOrOrderId);
+            log.info("PAYMENT_CREATE_ACCEPTED internalOrderId={} gateway={} gatewayOrderId={}",
+                    request.internalOrderId, gateway, intentOrOrderId);
+            return ResponseEntity.ok(new com.fooddelivery.common.dto.payment.CreatePaymentResponse(intentOrOrderId, gateway));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Invalid request: " + e.getMessage());
         } catch (Exception e) {
+            log.error("PAYMENT_CREATE_FAILED internalOrderId={} paymentMethod={} errorType={} error={}",
+                    request.internalOrderId, request.paymentMethod, e.getClass().getSimpleName(), e.getMessage(), e);
             return ResponseEntity.status(500).body("Internal server error: " + e.getMessage());
         }
     }

@@ -91,7 +91,9 @@ public class VyaparGatewayStrategy implements IPaymentGatewayStrategy {
                 }
                 return jsonResponse.get("intent").asText(); // Returning intent if order_id is missing
             } else {
-                log.error("Failed to execute VyaparGateway payload: {}", response.body());
+                log.error("VYAPAR_PAYMENT_CREATE_REJECTED internalOrderId={} httpStatus={} responseBytes={}",
+                        context.getInternalOrderId(), response.statusCode(),
+                        response.body() == null ? 0 : response.body().getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
                 throw new RuntimeException("Gateway initialization error status " + response.statusCode());
             }
         } catch (Exception e) {

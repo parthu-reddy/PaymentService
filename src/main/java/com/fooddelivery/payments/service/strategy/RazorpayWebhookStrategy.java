@@ -45,7 +45,7 @@ public class RazorpayWebhookStrategy implements WebhookHandlerStrategy {
             if (gatewayOrderId != null && !gatewayOrderId.isEmpty()) {
                 delegate.handleRefundSuccess(gatewayOrderId, refundId, syntheticPayload);
             } else {
-                log.warn("Cannot extract gateway order ID from refund event {}", rootNode.toString());
+                log.warn("RAZORPAY_REFUND_EVENT_INVALID refundId={} reason=missing-gateway-order-id", refundId);
             }
         } else if (EVENT_REFUND_FAILED.equals(eventType)) {
             String gatewayOrderId = rootNode.path("payload").path("payment").path("entity").path("order_id").asText(null);

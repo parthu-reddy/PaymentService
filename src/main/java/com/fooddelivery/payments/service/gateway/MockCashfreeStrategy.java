@@ -52,17 +52,6 @@ public class MockCashfreeStrategy implements IPaymentGatewayStrategy {
         String gatewayOrderId = "mock_cf_txn_" + context.getInternalOrderId();
         log.info("[DEBUG PROFILE] Mocking Cashfree Gateway create order for internal order: {}", context.getInternalOrderId());
         
-        scheduler.schedule(() -> {
-            try {
-                log.info("MockCashfreeStrategy scheduled task started for gatewayOrderId: {}", gatewayOrderId);
-                log.info("Calling webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
-                webhookService.handleSuccessfulPayment(gatewayOrderId, context.getAmountInInr());
-                log.info("Successfully called webhookService.handleSuccessfulPayment for gatewayOrderId: {}", gatewayOrderId);
-            } catch (Throwable e) {
-                log.error("Error auto-triggering payment success in MockCashfreeStrategy task", e);
-            }
-        }, 2, TimeUnit.SECONDS);
-
         return gatewayOrderId;
     }
 

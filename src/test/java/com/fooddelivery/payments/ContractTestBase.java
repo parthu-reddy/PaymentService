@@ -38,7 +38,8 @@ public abstract class ContractTestBase {
 
         com.fooddelivery.payments.config.PaymentRoutingConfig routingConfig = Mockito.mock(com.fooddelivery.payments.config.PaymentRoutingConfig.class);
         when(routingConfig.getGatewayForMethod(any())).thenReturn(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY);
-        PaymentController paymentController = new PaymentController(orchestrator, repository, routingConfig);
+        PaymentController paymentController = new PaymentController(orchestrator, repository, routingConfig,
+                Mockito.mock(com.fooddelivery.payments.service.PaymentCompletionScheduler.class));
         RestAssuredMockMvc.standaloneSetup(paymentController);
     }
 }
