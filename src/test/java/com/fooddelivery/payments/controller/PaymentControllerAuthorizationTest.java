@@ -33,6 +33,9 @@ class PaymentControllerAuthorizationTest {
     private com.fooddelivery.payments.config.PaymentRoutingConfig paymentRoutingConfig;
 
     @MockBean
+    private com.fooddelivery.payments.service.PaymentCompletionScheduler paymentCompletionScheduler;
+
+    @MockBean
     private org.springframework.data.redis.core.RedisOperations<String, String> redisOperations;
 
     @MockBean
@@ -42,6 +45,9 @@ class PaymentControllerAuthorizationTest {
     void setUp() {
         org.mockito.Mockito.when(paymentRoutingConfig.getGatewayForMethod(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY);
+        org.mockito.Mockito.when(orchestrator.createOrder(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn("gateway-order-123");
     }
 
     @Test

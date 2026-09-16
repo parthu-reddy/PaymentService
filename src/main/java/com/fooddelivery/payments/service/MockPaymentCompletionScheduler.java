@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
  * callback run first, fail with "PaymentIntent not found", and leave the order unpaid forever.
  */
 @Component
-@Profile("!prod & (debug | dev | default | test | local)")
+@Profile("!prod & (debug | dev | default | test | local | contract-test)")
 @Slf4j
 public class MockPaymentCompletionScheduler implements PaymentCompletionScheduler {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
