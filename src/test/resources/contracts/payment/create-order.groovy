@@ -4,7 +4,7 @@ Contract.make {
     description("Should create an order in payment service")
     request {
         method 'POST'
-        urlPath('/api/v1/payments/create-order')
+        urlPath('/api/v1/internal/payments/create-order')
         headers {
             contentType(applicationJson())
         }

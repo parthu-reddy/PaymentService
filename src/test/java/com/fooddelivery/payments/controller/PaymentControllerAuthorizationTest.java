@@ -53,7 +53,7 @@ class PaymentControllerAuthorizationTest {
     @Test
     @WithMockUser(roles = "CUSTOMER")
     void customerCannotCreateOrder() throws Exception {
-        mockMvc.perform(post("/api/v1/payments/create-order?gateway=RAZORPAY")
+        mockMvc.perform(post("/api/v1/internal/payments/create-order?gateway=RAZORPAY")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"internalOrderId\":\"54019a2f-1a98-4444-8888-000000000000\",\"amountInInr\":100,\"paymentMethod\":\"CARD\"}"))
                 .andExpect(status().isForbidden());
@@ -62,7 +62,7 @@ class PaymentControllerAuthorizationTest {
     @Test
     @WithMockUser(roles = "CUSTOMER")
     void customerCannotRefund() throws Exception {
-        mockMvc.perform(post("/api/v1/payments/refund?gateway=RAZORPAY")
+        mockMvc.perform(post("/api/v1/internal/payments/refund?gateway=RAZORPAY")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"gatewayOrderId\":\"order_123\",\"refundId\":\"ref_123\",\"amountInInr\":100}"))
                 .andExpect(status().isForbidden());
@@ -71,7 +71,7 @@ class PaymentControllerAuthorizationTest {
     @Test
     @WithMockUser(roles = "SERVICE")
     void serviceCanCreateOrder() throws Exception {
-        mockMvc.perform(post("/api/v1/payments/create-order?gateway=RAZORPAY")
+        mockMvc.perform(post("/api/v1/internal/payments/create-order?gateway=RAZORPAY")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"internalOrderId\":\"54019a2f-1a98-4444-8888-000000000000\",\"amountInInr\":100,\"paymentMethod\":\"CARD\"}"))
                 .andExpect(status().isOk());
@@ -80,7 +80,7 @@ class PaymentControllerAuthorizationTest {
     @Test
     @WithMockUser(roles = "ADMIN")
     void adminCanCreateOrder() throws Exception {
-        mockMvc.perform(post("/api/v1/payments/create-order?gateway=RAZORPAY")
+        mockMvc.perform(post("/api/v1/internal/payments/create-order?gateway=RAZORPAY")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"internalOrderId\":\"54019a2f-1a98-4444-8888-000000000000\",\"amountInInr\":100,\"paymentMethod\":\"CARD\"}"))
                 .andExpect(status().isOk());

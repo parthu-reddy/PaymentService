@@ -20,7 +20,7 @@ import com.fooddelivery.common.enums.PaymentGateway;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
-@RequestMapping("/api/v1/payments")
+@RequestMapping("/api/v1/internal/payments")
 @CrossOrigin(origins = "${cors.allowed-origins:*}") // Allows cross-origin requests from configured domains
 @PreAuthorize("hasAnyRole('SERVICE','ADMIN')")
 @lombok.extern.slf4j.Slf4j
