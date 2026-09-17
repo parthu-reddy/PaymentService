@@ -115,7 +115,7 @@
         }
       }
     },
-    "/api/v1/payments/refund" : {
+    "/api/v1/internal/payments/refund" : {
       "post" : {
         "tags" : [ "payment-controller" ],
         "operationId" : "refundOrder",
@@ -152,7 +152,7 @@
         }
       }
     },
-    "/api/v1/payments/create-order" : {
+    "/api/v1/internal/payments/create-order" : {
       "post" : {
         "tags" : [ "payment-controller" ],
         "operationId" : "createOrder",
