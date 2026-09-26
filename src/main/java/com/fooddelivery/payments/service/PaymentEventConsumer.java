@@ -140,8 +140,9 @@ public class PaymentEventConsumer {
     }
 
     @DltHandler
-    public void processDeadLetterTopic(@Payload(required = false) String payload, @org.springframework.messaging.handler.annotation.Header(name = org.springframework.kafka.support.KafkaHeaders.EXCEPTION_MESSAGE, required = false) String exceptionMessage) {
-        log.error("PAYMENT_EVENT_DLT payloadBytes={} exception={}",
-                payload == null ? 0 : payload.length(), exceptionMessage);
+    public void processDeadLetterTopic(@Payload(required = false) String payload, @org.springframework.messaging.handler.annotation.Header(name = org.springframework.kafka.support.KafkaHeaders.EXCEPTION_MESSAGE, required = false) String exceptionMessage,
+                                       @org.springframework.messaging.handler.annotation.Headers java.util.Map<String, Object> headers) {
+        log.error("PAYMENT_EVENT_DLT payloadBytes={} exception={} replay={}",
+                payload == null ? 0 : payload.length(), exceptionMessage, com.fooddelivery.common.util.KafkaHeaderUtils.deadLetterPosition(headers));
     }
 }

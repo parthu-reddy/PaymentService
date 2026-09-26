@@ -2,7 +2,7 @@ package com.fooddelivery.payments.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.ZonedDateTime;
+import java.time.Instant;
 import com.fooddelivery.common.enums.TransactionStatus;
 
 @Entity
@@ -39,7 +39,7 @@ public class Transaction extends BaseEntity {
     private String errorMessage;
 
     @Column(name = "captured_at")
-    private ZonedDateTime capturedAt;
+    private Instant capturedAt;
 
     @Column(name = "amount_refunded", nullable = false)
     private BigDecimal amountRefunded = BigDecimal.ZERO;
@@ -76,7 +76,7 @@ public class Transaction extends BaseEntity {
         return this.errorMessage;
     }
 
-    public ZonedDateTime getCapturedAt() {
+    public Instant getCapturedAt() {
         return this.capturedAt;
     }
 
@@ -116,7 +116,7 @@ public class Transaction extends BaseEntity {
         this.errorMessage = errorMessage;
     }
 
-    public void setCapturedAt(ZonedDateTime capturedAt) {
+    public void setCapturedAt(Instant capturedAt) {
         this.capturedAt = capturedAt;
     }
 

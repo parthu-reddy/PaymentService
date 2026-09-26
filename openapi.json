@@ -218,29 +218,11 @@
       "post" : {
         "tags" : [ "admin-dlq-controller" ],
         "operationId" : "retryDlqEvent",
-        "parameters" : [ {
-          "name" : "topic",
-          "in" : "query",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "name" : "eventId",
-          "in" : "header",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {
               "schema" : {
-                "type" : "object",
-                "additionalProperties" : {
-                  "type" : "object"
-                }
+                "$ref" : "#/components/schemas/DeadLetterReplayRequest"
               }
             }
           },
@@ -252,7 +234,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/ApiResponseString"
+                  "$ref" : "#/components/schemas/ApiResponseDeadLetterReplayResult"
                 }
               }
             }
@@ -292,12 +274,20 @@
         "tags" : [ "internal-payment-controller" ],
         "operationId" : "getDailyTotals",
         "parameters" : [ {
-          "name" : "date",
+          "name" : "from",
           "in" : "query",
           "required" : true,
           "schema" : {
             "type" : "string",
-            "format" : "date"
+            "format" : "date-time"
+          }
+        }, {
+          "name" : "to",
+          "in" : "query",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "date-time"
           }
         }, {
           "name" : "gatewayName",
@@ -458,6 +448,62 @@
           "timestamp" : {
             "type" : "string",
             "format" : "date-time"
+          }
+        }
+      },
+      "DeadLetterReplayRequest" : {
+        "required" : [ "dltTopic", "offset", "partition" ],
+        "type" : "object",
+        "properties" : {
+          "dltTopic" : {
+            "type" : "string"
+          },
+          "partition" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "offset" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }
+      },
+      "ApiResponseDeadLetterReplayResult" : {
+        "required" : [ "message", "success", "timestamp" ],
+        "type" : "object",
+        "properties" : {
+          "success" : {
+            "type" : "boolean"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "errorCode" : {
+            "type" : "string"
+          },
+          "data" : {
+            "$ref" : "#/components/schemas/DeadLetterReplayResult"
+          },
+          "timestamp" : {
+            "type" : "string",
+            "format" : "date-time"
+          }
+        }
+      },
+      "DeadLetterReplayResult" : {
+        "type" : "object",
+        "properties" : {
+          "topic" : {
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "eventType" : {
+            "type" : "string"
+          },
+          "eventId" : {
+            "type" : "string"
           }
         }
       },

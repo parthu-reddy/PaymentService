@@ -11,7 +11,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import java.time.Duration;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -54,7 +54,7 @@ public class PaymentReconciliationJob {
             // Find intents stuck in INITIATED for more than 10 minutes
             List<PaymentIntent> stuckIntents = paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(
                     PaymentIntentStatus.INITIATED, 
-                    java.time.ZonedDateTime.now().minusMinutes(10)
+                    java.time.Instant.now().minus(java.time.Duration.ofMinutes(10))
             );
 
             for (PaymentIntent intent : stuckIntents) {

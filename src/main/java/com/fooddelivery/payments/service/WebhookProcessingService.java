@@ -248,7 +248,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                         .aggregateId(intent.getOrderId())
                         .eventType(eventType)
                         .payload(objectMapper.writeValueAsString(event))
-                        .createdAt(java.time.LocalDateTime.now())
+                        .createdAt(java.time.Instant.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
                 outboxEventRepository.save(outbox);
@@ -289,7 +289,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                         .aggregateId(intent.getOrderId())
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_FAILED)
                         .payload(objectMapper.writeValueAsString(event))
-                        .createdAt(java.time.LocalDateTime.now())
+                        .createdAt(java.time.Instant.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
                 outboxEventRepository.save(outbox);
@@ -396,7 +396,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                         .aggregateId(intent.getOrderId().toString())
                         .eventType(outboxEventType)
                         .payload(objectMapper.writeValueAsString(refundEvent))
-                        .createdAt(java.time.LocalDateTime.now())
+                        .createdAt(java.time.Instant.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
                 outboxEventRepository.save(outbox);
@@ -440,7 +440,7 @@ private static final String LOCK_PREFIX_WEBHOOK = "webhook:payment:";
                         .aggregateId(intent.getOrderId().toString())
                         .eventType(com.fooddelivery.common.constants.EventType.PAYMENT_REFUNDED)
                         .payload(objectMapper.writeValueAsString(refundEvent))
-                        .createdAt(java.time.LocalDateTime.now())
+                        .createdAt(java.time.Instant.now())
                         .status(com.fooddelivery.common.enums.OutboxStatus.UNPROCESSED)
                         .build();
                 outboxEventRepository.save(outbox);

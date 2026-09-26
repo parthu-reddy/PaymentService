@@ -11,7 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
-import java.time.ZonedDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import com.fooddelivery.common.enums.PaymentGateway;
@@ -58,7 +58,7 @@ public class PaymentReconciliationJobTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.setIfAbsent(eq("lock:reconcilePendingPayments"), org.mockito.ArgumentMatchers.anyString(), any())).thenReturn(true);
 
-        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(ZonedDateTime.class)))
+        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(Instant.class)))
                 .thenReturn(List.of(intent));
         
         when(orchestrator.getStrategy(PaymentGateway.VYAPAR)).thenReturn(mockStrategy);
@@ -89,7 +89,7 @@ public class PaymentReconciliationJobTest {
     @Test
     void aFailedPaymentAtTheGatewayIsRecordedAsFailed() {
         lockGranted();
-        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(ZonedDateTime.class)))
+        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(Instant.class)))
                 .thenReturn(List.of(stuckIntent()));
         when(orchestrator.getStrategy(PaymentGateway.VYAPAR)).thenReturn(mockStrategy);
         when(mockStrategy.verifyStatus("ord_123")).thenReturn(PaymentIntentStatus.FAILED);
@@ -104,7 +104,7 @@ public class PaymentReconciliationJobTest {
     @Test
     void aPaymentStillInFlightIsLeftAlone() {
         lockGranted();
-        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(ZonedDateTime.class)))
+        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(Instant.class)))
                 .thenReturn(List.of(stuckIntent()));
         when(orchestrator.getStrategy(PaymentGateway.VYAPAR)).thenReturn(mockStrategy);
         when(mockStrategy.verifyStatus("ord_123")).thenReturn(PaymentIntentStatus.INITIATED);
@@ -135,7 +135,7 @@ public class PaymentReconciliationJobTest {
     @Test
     void aGatewayThatThrowsDoesNotAbandonTheRun() {
         lockGranted();
-        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(ZonedDateTime.class)))
+        when(paymentIntentRepository.findTop100ByStatusAndCreatedAtBefore(eq(PaymentIntentStatus.INITIATED), any(Instant.class)))
                 .thenReturn(List.of(stuckIntent()));
         when(orchestrator.getStrategy(PaymentGateway.VYAPAR)).thenThrow(new RuntimeException("gateway unreachable"));
 

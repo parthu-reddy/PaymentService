@@ -11,9 +11,9 @@ import java.util.Optional;
 public interface IRefundRepository extends JpaRepository<Refund, UUID> {
     Optional<Refund> findByGatewayRefundId(String gatewayRefundId);
 
-    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(r.amount), 0) FROM Refund r WHERE r.status = 'COMPLETED' AND CAST(r.createdAt AS date) = :date")
-    java.math.BigDecimal sumRefundedAmountByDate(@org.springframework.data.repository.query.Param("date") java.time.LocalDate date);
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(r.amount), 0) FROM Refund r WHERE r.status = 'COMPLETED' AND r.createdAt >= :from AND r.createdAt < :to")
+    java.math.BigDecimal sumRefundedAmountInWindow(@org.springframework.data.repository.query.Param("from") java.time.Instant from, @org.springframework.data.repository.query.Param("to") java.time.Instant to);
 
-    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(r.amount), 0) FROM Refund r WHERE r.status = 'COMPLETED' AND CAST(r.createdAt AS date) = :date AND r.transaction.paymentIntent.gatewayName = :gatewayName")
-    java.math.BigDecimal sumRefundedAmountByDateAndGateway(@org.springframework.data.repository.query.Param("date") java.time.LocalDate date, @org.springframework.data.repository.query.Param("gatewayName") com.fooddelivery.common.enums.PaymentGateway gatewayName);
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(r.amount), 0) FROM Refund r WHERE r.status = 'COMPLETED' AND r.createdAt >= :from AND r.createdAt < :to AND r.transaction.paymentIntent.gatewayName = :gatewayName")
+    java.math.BigDecimal sumRefundedAmountInWindowByGateway(@org.springframework.data.repository.query.Param("from") java.time.Instant from, @org.springframework.data.repository.query.Param("to") java.time.Instant to, @org.springframework.data.repository.query.Param("gatewayName") com.fooddelivery.common.enums.PaymentGateway gatewayName);
 }

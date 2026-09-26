@@ -16,9 +16,9 @@ public interface ITransactionRepository extends JpaRepository<Transaction, UUID>
     @org.springframework.data.jpa.repository.Query("SELECT t FROM Transaction t WHERE t.paymentIntent.id = :paymentIntentId AND t.status = :status ORDER BY t.createdAt DESC LIMIT 1")
     Optional<Transaction> findLockedFirstByPaymentIntentIdAndStatusOrderByCreatedAtDesc(@org.springframework.data.repository.query.Param("paymentIntentId") UUID paymentIntentId, @org.springframework.data.repository.query.Param("status") com.fooddelivery.common.enums.TransactionStatus status);
     
-    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.status = 'SUCCESS' AND CAST(t.createdAt AS date) = :date")
-    java.math.BigDecimal sumCapturedAmountByDate(@org.springframework.data.repository.query.Param("date") java.time.LocalDate date);
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.status = 'SUCCESS' AND t.createdAt >= :from AND t.createdAt < :to")
+    java.math.BigDecimal sumCapturedAmountInWindow(@org.springframework.data.repository.query.Param("from") java.time.Instant from, @org.springframework.data.repository.query.Param("to") java.time.Instant to);
 
-    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.status = 'SUCCESS' AND CAST(t.createdAt AS date) = :date AND t.paymentIntent.gatewayName = :gatewayName")
-    java.math.BigDecimal sumCapturedAmountByDateAndGateway(@org.springframework.data.repository.query.Param("date") java.time.LocalDate date, @org.springframework.data.repository.query.Param("gatewayName") com.fooddelivery.common.enums.PaymentGateway gatewayName);
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.status = 'SUCCESS' AND t.createdAt >= :from AND t.createdAt < :to AND t.paymentIntent.gatewayName = :gatewayName")
+    java.math.BigDecimal sumCapturedAmountInWindowByGateway(@org.springframework.data.repository.query.Param("from") java.time.Instant from, @org.springframework.data.repository.query.Param("to") java.time.Instant to, @org.springframework.data.repository.query.Param("gatewayName") com.fooddelivery.common.enums.PaymentGateway gatewayName);
 }

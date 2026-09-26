@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.stereotype.Component;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -53,7 +53,7 @@ public class WebhookDlqJob {
             // Find webhooks that failed and are older than 5 minutes (to allow DB to settle)
             List<WebhookDelivery> failedDeliveries = webhookDeliveryRepository.findTop100ByProcessingStatusAndCreatedAtBefore(
                     DeliveryStatus.FAILED,
-                    java.time.ZonedDateTime.now().minusMinutes(5)
+                    java.time.Instant.now().minus(java.time.Duration.ofMinutes(5))
             );
 
             for (WebhookDelivery delivery : failedDeliveries) {

@@ -40,6 +40,7 @@ public abstract class ContractTestBase {
         when(routingConfig.getGatewayForMethod(any())).thenReturn(com.fooddelivery.common.enums.PaymentGateway.RAZORPAY);
         PaymentController paymentController = new PaymentController(orchestrator, repository, routingConfig,
                 Mockito.mock(com.fooddelivery.payments.service.PaymentCompletionScheduler.class));
-        RestAssuredMockMvc.standaloneSetup(paymentController);
+        // Serialize as production does: see PlatformJson (contract-harness Jackson drift).
+        com.fooddelivery.common.contract.PlatformJson.standaloneSetup(paymentController);
     }
 }

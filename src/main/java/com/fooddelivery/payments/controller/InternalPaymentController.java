@@ -28,16 +28,18 @@ public class InternalPaymentController {
     // Endpoint: /api/v1/internal/payments/daily-totals
     @GetMapping("/daily-totals")
     @PreAuthorize("hasRole('SERVICE')")
-    public Map<String, BigDecimal> getDailyTotals(@RequestParam("date") LocalDate date, @RequestParam(value = "gatewayName", required = false) String gatewayName) {
+    public Map<String, BigDecimal> getDailyTotals(@RequestParam("from") java.time.Instant from, @RequestParam("to") java.time.Instant to, @RequestParam(value = "gatewayName", required = false) String gatewayName) {
+        // [from, to) is the ledger's accounting day, computed once in LedgerService.AccountingCalendar
+        // so that every service sums exactly the same instants. This service interprets no dates.
         BigDecimal capturedAmount;
         BigDecimal refundedAmount;
         if (gatewayName != null && !gatewayName.isEmpty()) {
             com.fooddelivery.common.enums.PaymentGateway gateway = com.fooddelivery.common.enums.PaymentGateway.valueOf(gatewayName);
-            capturedAmount = transactionRepository.sumCapturedAmountByDateAndGateway(date, gateway);
-            refundedAmount = refundRepository.sumRefundedAmountByDateAndGateway(date, gateway);
+            capturedAmount = transactionRepository.sumCapturedAmountInWindowByGateway(from, to, gateway);
+            refundedAmount = refundRepository.sumRefundedAmountInWindowByGateway(from, to, gateway);
         } else {
-            capturedAmount = transactionRepository.sumCapturedAmountByDate(date);
-            refundedAmount = refundRepository.sumRefundedAmountByDate(date);
+            capturedAmount = transactionRepository.sumCapturedAmountInWindow(from, to);
+            refundedAmount = refundRepository.sumRefundedAmountInWindow(from, to);
         }
 
         Map<String, BigDecimal> result = new HashMap<>();

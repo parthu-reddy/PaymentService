@@ -10,7 +10,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,7 +43,7 @@ public class WebhookDlqJobTest {
         delivery.setGatewayName(com.fooddelivery.common.enums.PaymentGateway.VYAPAR);
         delivery.setPayload("{}");
         delivery.setProcessingStatus(DeliveryStatus.FAILED);
-        delivery.setCreatedAt(java.time.ZonedDateTime.now());
+        delivery.setCreatedAt(java.time.Instant.now());
 
         when(webhookDeliveryRepository.findTop100ByProcessingStatusAndCreatedAtBefore(eq(DeliveryStatus.FAILED), any())).thenReturn(List.of(delivery));
         doThrow(new RuntimeException("DB Lock")).when(webhookProcessingService).retryWebhook(any());
